@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#171a33">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Gratitude">
+<title>Three Good Things — Evening Reflection</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --sky-1: #171a33;
+    --sky-2: #2c2a52;
+    --sky-3: #423a63;
+    --paper: #faf6ec;
+    --paper-edge: #efe8d8;
+    --ink: #2b2438;
+    --ink-soft: #6f6680;
+    --gold: #e8a33d;
+    --gold-soft: #f4c978;
+    --rose: #e8927c;
+    --rose-soft: #f7ded6;
+    --star-off: rgba(255,255,255,0.18);
+  }
+
+  * { box-sizing: border-box; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+  }
+
+  html, body {
+    margin: 0;
+    min-height: 100vh;
+    background: radial-gradient(ellipse at 50% -10%, var(--sky-3), var(--sky-2) 45%, var(--sky-1) 100%);
+    font-family: 'Inter', sans-serif;
+    color: var(--ink);
+  }
+
+  #stars {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  .page {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 48px 16px 64px;
+  }
+
+  .eyebrow {
+    font-size: 12px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: rgba(244, 201, 120, 0.8);
+    margin-bottom: 10px;
+    font-weight: 500;
+  }
+
+  .headline {
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: clamp(28px, 6vw, 42px);
+    color: #fbf5e8;
+    text-align: center;
+    margin: 0 0 4px;
+    max-width: 480px;
+    line-height: 1.15;
+  }
+
+  .subhead {
+    color: rgba(255,255,255,0.55);
+    font-size: 14px;
+    text-align: center;
+    margin-bottom: 32px;
+  }
+
+  .card {
+    position: relative;
+    width: 100%;
+    max-width: 460px;
+    background: var(--paper);
+    border-radius: 18px;
+    padding: 32px 28px 28px;
+    box-shadow: 0 30px 60px -20px rgba(0,0,0,0.55), 0 2px 0 var(--paper-edge) inset;
+  }
+
+  .stars-row {
+    display: flex;
+    justify-content: center;
+    gap: 18px;
+    margin-bottom: 22px;
+  }
+
+  .star {
+    width: 30px;
+    height: 30px;
+    transition: transform 0.25s ease, filter 0.25s ease;
+  }
+  .star svg { width: 100%; height: 100%; display: block; }
+  .star.filled { transform: scale(1.08); }
+  .star.pulse { animation: pulse 1.6s ease-in-out infinite; }
+
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 0.55; }
+    50% { transform: scale(1.12); opacity: 1; }
+  }
+
+  .field {
+    margin-bottom: 16px;
+  }
+
+  .field label {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--ink-soft);
+    margin-bottom: 6px;
+    font-weight: 500;
+  }
+
+  .field label .num {
+    font-family: 'Fraunces', serif;
+    font-size: 15px;
+    color: var(--gold);
+    font-weight: 600;
+  }
+
+  .field textarea {
+    width: 100%;
+    resize: none;
+    border: 1.5px solid var(--paper-edge);
+    background: #fffdf9;
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    color: var(--ink);
+    line-height: 1.4;
+    min-height: 46px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .field textarea:focus {
+    outline: none;
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(232, 163, 61, 0.18);
+  }
+
+  .field textarea::placeholder { color: #b9b1c4; }
+
+  .save-btn {
+    width: 100%;
+    margin-top: 8px;
+    padding: 13px;
+    border: none;
+    border-radius: 10px;
+    background: var(--ink);
+    color: #fbf5e8;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 14.5px;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.1s ease;
+  }
+  .save-btn:hover { background: #423a5c; }
+  .save-btn:active { transform: scale(0.98); }
+  .save-btn:disabled {
+    background: #cfc8da;
+    cursor: default;
+  }
+
+  .save-msg {
+    text-align: center;
+    font-size: 13px;
+    color: #7a9b6e;
+    margin-top: 10px;
+    min-height: 16px;
+    font-weight: 500;
+  }
+
+  .banner {
+    width: 100%;
+    max-width: 460px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--rose-soft);
+    border: 1px solid rgba(232, 146, 124, 0.4);
+    color: #8a4a3a;
+    font-size: 13.5px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    margin-bottom: 18px;
+    line-height: 1.4;
+  }
+  .banner svg { flex-shrink: 0; width: 18px; height: 18px; }
+
+  .history {
+    width: 100%;
+    max-width: 460px;
+    margin-top: 36px;
+  }
+
+  .history-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    padding: 0 2px;
+  }
+
+  .history-title {
+    font-family: 'Fraunces', serif;
+    font-size: 16px;
+    color: #fbf5e8;
+    font-weight: 500;
+  }
+
+  .streak {
+    font-size: 12px;
+    color: var(--gold-soft);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+
+  .entry {
+    background: rgba(250, 246, 236, 0.06);
+    border: 1px solid rgba(250, 246, 236, 0.1);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+  }
+
+  .entry-date {
+    font-size: 11.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(255,255,255,0.4);
+    margin-bottom: 6px;
+    font-weight: 600;
+  }
+
+  .entry ul {
+    margin: 0;
+    padding-left: 18px;
+    color: rgba(255,255,255,0.82);
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  .empty-history {
+    color: rgba(255,255,255,0.4);
+    font-size: 13.5px;
+    text-align: center;
+    padding: 20px 0;
+  }
+
+  .loading {
+    color: rgba(255,255,255,0.5);
+    font-size: 13px;
+    text-align: center;
+    padding: 20px 0;
+  }
+</style>
+</head>
+<body>
+<canvas id="stars"></canvas>
+
+<div class="page">
+  <div class="eyebrow">A moment before the day ends</div>
+  <h1 class="headline">Three good things</h1>
+  <div class="subhead" id="dateLabel"></div>
+
+  <div class="banner" id="banner" style="display:none;">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#8a4a3a" stroke-width="2"><path d="M12 9v4M12 17h.01M10.3 3.9L2.9 17.1a1.7 1.7 0 0 0 1.5 2.5h15.2a1.7 1.7 0 0 0 1.5-2.5L13.7 3.9a1.7 1.7 0 0 0-3.4 0z"/></svg>
+    <span id="bannerText"></span>
+  </div>
+
+  <div class="card">
+    <div class="stars-row" id="starsRow"></div>
+
+    <div class="field">
+      <label><span class="num">1</span> Something that happened today</label>
+      <textarea id="g0" rows="1" placeholder="A quiet win, a kind word, a good coffee…"></textarea>
+    </div>
+    <div class="field">
+      <label><span class="num">2</span> Someone or something you appreciated</label>
+      <textarea id="g1" rows="1" placeholder="A person, a place, a small comfort…"></textarea>
+    </div>
+    <div class="field">
+      <label><span class="num">3</span> Anything else, big or small</label>
+      <textarea id="g2" rows="1" placeholder="Whatever comes to mind…"></textarea>
+    </div>
+
+    <button class="save-btn" id="saveBtn">Save today's gratitude</button>
+    <div class="save-msg" id="saveMsg"></div>
+  </div>
+
+  <div class="history">
+    <div class="history-head">
+      <div class="history-title">Past reflections</div>
+      <div class="streak" id="streakLabel"></div>
+    </div>
+    <div id="historyList"><div class="loading">Loading your entries…</div></div>
+  </div>
+</div>
+
+<script>
+  // ---------- Starfield background ----------
+  const canvas = document.getElementById('stars');
+  const ctx = canvas.getContext('2d');
+  let stars = [];
+  function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const count = Math.floor((canvas.width * canvas.height) / 9000);
+    stars = Array.from({length: count}, () => ({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height * 0.7,
+      r: Math.random() * 1.3 + 0.3,
+      phase: Math.random() * Math.PI * 2,
+      speed: Math.random() * 0.015 + 0.005
+    }));
+  }
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function drawStars(t) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for (const s of stars) {
+      const twinkle = reduceMotion ? 0.6 : 0.4 + 0.6 * Math.abs(Math.sin(s.phase + t * s.speed));
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255, 250, 235, ${twinkle * 0.8})`;
+      ctx.fill();
+    }
+    if (!reduceMotion) requestAnimationFrame(drawStars);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+  requestAnimationFrame(drawStars);
+
+  // ---------- Date helpers ----------
+  function todayKey() {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+  function formatDateLabel(dateStr) {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const dt = new Date(y, m - 1, d);
+    return dt.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+  }
+
+  document.getElementById('dateLabel').textContent = formatDateLabel(todayKey());
+
+  // ---------- Star indicator icons ----------
+  const starsRow = document.getElementById('starsRow');
+  function starSVG(filled) {
+    return `<svg viewBox="0 0 24 24">
+      <path d="M12 2.5l2.9 6.3 6.9.7-5.2 4.7 1.5 6.8L12 17.7l-6.1 3.3 1.5-6.8L2.2 9.5l6.9-.7z"
+        fill="${filled ? 'var(--gold)' : 'none'}"
+        stroke="${filled ? 'var(--gold)' : 'var(--star-off)'}"
+        stroke-width="1.6" stroke-linejoin="round"/>
+    </svg>`;
+  }
+  const starEls = [0,1,2].map(i => {
+    const div = document.createElement('div');
+    div.className = 'star';
+    div.dataset.idx = i;
+    starsRow.appendChild(div);
+    return div;
+  });
+  function renderStars(values) {
+    starEls.forEach((el, i) => {
+      const filled = !!(values[i] && values[i].trim());
+      el.innerHTML = starSVG(filled);
+      el.classList.toggle('filled', filled);
+      el.classList.toggle('pulse', !filled);
+    });
+  }
+  renderStars(['', '', '']);
+
+  // ---------- Storage ----------
+  const inputs = [document.getElementById('g0'), document.getElementById('g1'), document.getElementById('g2')];
+  const saveBtn = document.getElementById('saveBtn');
+  const saveMsg = document.getElementById('saveMsg');
+  const banner = document.getElementById('banner');
+  const bannerText = document.getElementById('bannerText');
+
+  function currentValues() {
+    return inputs.map(i => i.value);
+  }
+
+  function updateBanner(values) {
+    const filledCount = values.filter(v => v.trim()).length;
+    if (filledCount === 3) {
+      banner.style.display = 'none';
+    } else if (filledCount === 0) {
+      banner.style.display = 'flex';
+      bannerText.textContent = "You haven't noted anything for today yet. Take a minute before the day slips away.";
+    } else {
+      banner.style.display = 'flex';
+      bannerText.textContent = `You've noted ${filledCount} of 3 today. A couple more, when you're ready.`;
+    }
+  }
+
+  inputs.forEach(input => {
+    input.addEventListener('input', () => {
+      const values = currentValues();
+      renderStars(values);
+      updateBanner(values);
+    });
+  });
+
+  async function loadToday() {
+    try {
+      const raw = localStorage.getItem(`gratitude:${todayKey()}`);
+      if (raw) {
+        const data = JSON.parse(raw);
+        (data.items || []).forEach((v, i) => { if (inputs[i]) inputs[i].value = v; });
+      }
+    } catch (e) {
+      // no entry yet for today
+    }
+    const values = currentValues();
+    renderStars(values);
+    updateBanner(values);
+  }
+
+  saveBtn.addEventListener('click', async () => {
+    const values = currentValues();
+    const filledCount = values.filter(v => v.trim()).length;
+    if (filledCount === 0) {
+      saveMsg.style.color = '#a8654f';
+      saveMsg.textContent = 'Write at least one thing before saving.';
+      return;
+    }
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving…';
+    try {
+      localStorage.setItem(`gratitude:${todayKey()}`, JSON.stringify({
+        items: values,
+        savedAt: new Date().toISOString()
+      }));
+      saveMsg.style.color = '#7a9b6e';
+      saveMsg.textContent = 'Saved. See you tomorrow.';
+      updateBanner(values);
+      await loadHistory();
+    } catch (e) {
+      saveMsg.style.color = '#a8654f';
+      saveMsg.textContent = 'Could not save — please try again.';
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = "Save today's gratitude";
+    }
+  });
+
+  // ---------- History + streak ----------
+  function dateFromKey(key) {
+    const [, y, m, d] = key.match(/^gratitude:(\d{4})-(\d{2})-(\d{2})$/) || [];
+    if (!y) return null;
+    return new Date(Number(y), Number(m) - 1, Number(d));
+  }
+
+  function computeStreak(dateStrs) {
+    const set = new Set(dateStrs);
+    let streak = 0;
+    let cursor = new Date();
+    while (true) {
+      const y = cursor.getFullYear();
+      const m = String(cursor.getMonth() + 1).padStart(2, '0');
+      const d = String(cursor.getDate()).padStart(2, '0');
+      const key = `${y}-${m}-${d}`;
+      if (set.has(key)) {
+        streak++;
+        cursor.setDate(cursor.getDate() - 1);
+      } else {
+        break;
+      }
+    }
+    return streak;
+  }
+
+  async function loadHistory() {
+    const listEl = document.getElementById('historyList');
+    const streakEl = document.getElementById('streakLabel');
+    try {
+      const keys = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith('gratitude:')) keys.push(k);
+      }
+      keys.sort().reverse();
+
+      if (keys.length === 0) {
+        listEl.innerHTML = '<div class="empty-history">Your reflections will appear here once you save your first one.</div>';
+        streakEl.textContent = '';
+        return;
+      }
+
+      const entries = [];
+      for (const key of keys.slice(0, 14)) {
+        try {
+          const raw = localStorage.getItem(key);
+          if (raw) {
+            const data = JSON.parse(raw);
+            entries.push({ key, items: (data.items || []).filter(v => v && v.trim()) });
+          }
+        } catch (e) { /* skip */ }
+      }
+
+      listEl.innerHTML = entries.map(e => {
+        const dateStr = e.key.replace('gratitude:', '');
+        return `<div class="entry">
+          <div class="entry-date">${formatDateLabel(dateStr)}</div>
+          <ul>${e.items.map(i => `<li>${escapeHTML(i)}</li>`).join('')}</ul>
+        </div>`;
+      }).join('') || '<div class="empty-history">No entries yet.</div>';
+
+      const dateStrs = keys.map(k => k.replace('gratitude:', ''));
+      const streak = computeStreak(dateStrs);
+      streakEl.textContent = streak > 0 ? `${streak} day${streak === 1 ? '' : 's'} in a row` : '';
+    } catch (e) {
+      listEl.innerHTML = '<div class="empty-history">Could not load past entries.</div>';
+    }
+  }
+
+  function escapeHTML(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function autoGrow(el) {
+    el.style.height = 'auto';
+    el.style.height = el.scrollHeight + 'px';
+  }
+  inputs.forEach(el => el.addEventListener('input', () => autoGrow(el)));
+
+  loadToday().then(() => inputs.forEach(autoGrow));
+  loadHistory();
+</script>
+</body>
+</html>

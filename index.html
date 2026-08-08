@@ -83,7 +83,62 @@
     color: rgba(255,255,255,0.55);
     font-size: 14px;
     text-align: center;
-    margin-bottom: 32px;
+    margin-bottom: 18px;
+  }
+
+  /* ---------- Date navigator ---------- */
+  .date-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .date-nav button {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.18);
+    background: rgba(255,255,255,0.06);
+    color: #fbf5e8;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s ease, opacity 0.2s ease;
+  }
+  .date-nav button:hover:not(:disabled) { background: rgba(255,255,255,0.14); }
+  .date-nav button:disabled { opacity: 0.3; cursor: default; }
+
+  .date-nav input[type="date"] {
+    font-family: 'Inter', sans-serif;
+    font-size: 13.5px;
+    font-weight: 500;
+    color: #fbf5e8;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 8px;
+    padding: 6px 10px;
+    color-scheme: dark;
+  }
+  .date-nav input[type="date"]:focus {
+    outline: none;
+    border-color: var(--gold);
+  }
+
+  .today-jump {
+    background: none;
+    border: none;
+    color: var(--gold-soft);
+    font-size: 12px;
+    font-weight: 600;
+    text-decoration: underline;
+    cursor: pointer;
+    margin-bottom: 24px;
+    padding: 0;
   }
 
   .card {
@@ -94,6 +149,7 @@
     border-radius: 18px;
     padding: 32px 28px 28px;
     box-shadow: 0 30px 60px -20px rgba(0,0,0,0.55), 0 2px 0 var(--paper-edge) inset;
+    margin-top: 8px;
   }
 
   .stars-row {
@@ -208,6 +264,63 @@
   }
   .banner svg { flex-shrink: 0; width: 18px; height: 18px; }
 
+  /* ---------- Quote card ---------- */
+  .quote-card {
+    width: 100%;
+    max-width: 460px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 14px;
+    padding: 20px 22px;
+    margin-top: 28px;
+    text-align: center;
+  }
+
+  .quote-label {
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--gold-soft);
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+
+  .quote-text {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 16px;
+    line-height: 1.5;
+    color: #fbf5e8;
+    margin: 0 0 10px;
+  }
+
+  .quote-author {
+    font-size: 13px;
+    color: rgba(255,255,255,0.55);
+    margin-bottom: 14px;
+  }
+
+  .quote-refresh {
+    background: none;
+    border: 1px solid rgba(255,255,255,0.2);
+    color: rgba(255,255,255,0.75);
+    font-size: 12px;
+    font-weight: 500;
+    padding: 7px 14px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+  }
+  .quote-refresh:hover { background: rgba(255,255,255,0.1); }
+
+  .quote-source {
+    display: block;
+    margin-top: 10px;
+    font-size: 10.5px;
+    color: rgba(255,255,255,0.3);
+  }
+  .quote-source a { color: rgba(255,255,255,0.4); }
+
   .history {
     width: 100%;
     max-width: 460px;
@@ -242,6 +355,16 @@
     border-radius: 12px;
     padding: 14px 16px;
     margin-bottom: 10px;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease;
+  }
+  .entry:hover {
+    background: rgba(250, 246, 236, 0.1);
+    border-color: rgba(250, 246, 236, 0.2);
+  }
+  .entry.active {
+    border-color: var(--gold);
+    background: rgba(232, 163, 61, 0.08);
   }
 
   .entry-date {
@@ -281,8 +404,15 @@
 
 <div class="page">
   <div class="eyebrow">A moment before the day ends</div>
-  <h1 class="headline">Three good things</h1>
+  <h1 class="headline" id="headline">Three good things</h1>
   <div class="subhead" id="dateLabel"></div>
+
+  <div class="date-nav">
+    <button id="prevDay" aria-label="Previous day" title="Previous day">‹</button>
+    <input type="date" id="datePicker">
+    <button id="nextDay" aria-label="Next day" title="Next day">›</button>
+  </div>
+  <button class="today-jump" id="todayJump" style="display:none;">Jump back to today</button>
 
   <div class="banner" id="banner" style="display:none;">
     <svg viewBox="0 0 24 24" fill="none" stroke="#8a4a3a" stroke-width="2"><path d="M12 9v4M12 17h.01M10.3 3.9L2.9 17.1a1.7 1.7 0 0 0 1.5 2.5h15.2a1.7 1.7 0 0 0 1.5-2.5L13.7 3.9a1.7 1.7 0 0 0-3.4 0z"/></svg>
@@ -293,7 +423,7 @@
     <div class="stars-row" id="starsRow"></div>
 
     <div class="field">
-      <label><span class="num">1</span> Something that happened today</label>
+      <label><span class="num">1</span> Something that happened that day</label>
       <textarea id="g0" rows="1" placeholder="A quiet win, a kind word, a good coffee…"></textarea>
     </div>
     <div class="field">
@@ -307,6 +437,14 @@
 
     <button class="save-btn" id="saveBtn">Save today's gratitude</button>
     <div class="save-msg" id="saveMsg"></div>
+  </div>
+
+  <div class="quote-card">
+    <div class="quote-label">A little inspiration</div>
+    <p class="quote-text" id="quoteText"></p>
+    <div class="quote-author" id="quoteAuthor"></div>
+    <button class="quote-refresh" id="quoteRefresh">Another quote</button>
+    <span class="quote-source">From <a href="https://www.snhu.edu/about-us/newsroom/education/personal-growth-quotes" target="_blank" rel="noopener">SNHU's Personal Growth Quotes</a></span>
   </div>
 
   <div class="history">
@@ -352,20 +490,31 @@
   requestAnimationFrame(drawStars);
 
   // ---------- Date helpers ----------
-  function todayKey() {
-    const d = new Date();
+  function keyFromDate(d) {
     const y = d.getFullYear();
     const m = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
     return `${y}-${m}-${day}`;
   }
-  function formatDateLabel(dateStr) {
+  function todayKey() {
+    return keyFromDate(new Date());
+  }
+  function dateFromDateStr(dateStr) {
     const [y, m, d] = dateStr.split('-').map(Number);
-    const dt = new Date(y, m - 1, d);
+    return new Date(y, m - 1, d);
+  }
+  function formatDateLabel(dateStr) {
+    const dt = dateFromDateStr(dateStr);
     return dt.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
   }
+  function addDays(dateStr, delta) {
+    const dt = dateFromDateStr(dateStr);
+    dt.setDate(dt.getDate() + delta);
+    return keyFromDate(dt);
+  }
 
-  document.getElementById('dateLabel').textContent = formatDateLabel(todayKey());
+  const TODAY_KEY = todayKey();
+  let selectedDate = TODAY_KEY;
 
   // ---------- Star indicator icons ----------
   const starsRow = document.getElementById('starsRow');
@@ -394,52 +543,120 @@
   }
   renderStars(['', '', '']);
 
-  // ---------- Storage ----------
+  // ---------- Elements ----------
   const inputs = [document.getElementById('g0'), document.getElementById('g1'), document.getElementById('g2')];
   const saveBtn = document.getElementById('saveBtn');
   const saveMsg = document.getElementById('saveMsg');
   const banner = document.getElementById('banner');
   const bannerText = document.getElementById('bannerText');
+  const headline = document.getElementById('headline');
+  const dateLabel = document.getElementById('dateLabel');
+  const datePicker = document.getElementById('datePicker');
+  const prevDayBtn = document.getElementById('prevDay');
+  const nextDayBtn = document.getElementById('nextDay');
+  const todayJumpBtn = document.getElementById('todayJump');
+
+  datePicker.max = TODAY_KEY;
+  datePicker.value = selectedDate;
 
   function currentValues() {
     return inputs.map(i => i.value);
   }
 
-  function updateBanner(values) {
+  function updateBanner(values, dateStr) {
     const filledCount = values.filter(v => v.trim()).length;
+    const dayWord = dateStr === TODAY_KEY ? 'today' : 'this day';
     if (filledCount === 3) {
       banner.style.display = 'none';
     } else if (filledCount === 0) {
       banner.style.display = 'flex';
-      bannerText.textContent = "You haven't noted anything for today yet. Take a minute before the day slips away.";
+      bannerText.textContent = dateStr === TODAY_KEY
+        ? "You haven't noted anything for today yet. Take a minute before the day slips away."
+        : "Nothing noted for this day yet. Go ahead and fill it in from memory.";
     } else {
       banner.style.display = 'flex';
-      bannerText.textContent = `You've noted ${filledCount} of 3 today. A couple more, when you're ready.`;
+      bannerText.textContent = `You've noted ${filledCount} of 3 for ${dayWord}. A couple more, when you're ready.`;
     }
   }
+
+  function updateHeaderForDate(dateStr) {
+    if (dateStr === TODAY_KEY) {
+      headline.textContent = 'Three good things';
+      dateLabel.textContent = formatDateLabel(dateStr);
+      todayJumpBtn.style.display = 'none';
+      saveBtn.textContent = "Save today's gratitude";
+    } else {
+      headline.textContent = 'Looking back';
+      dateLabel.textContent = formatDateLabel(dateStr);
+      todayJumpBtn.style.display = 'inline-block';
+      saveBtn.textContent = "Save this day's gratitude";
+    }
+    nextDayBtn.disabled = dateStr >= TODAY_KEY;
+  }
+
+  // ---------- Storage (persistent, per-user) ----------
+  async function getEntry(dateStr) {
+    try {
+      const res = await window.storage.get(`gratitude:${dateStr}`, false);
+      if (res && res.value) {
+        const data = JSON.parse(res.value);
+        return data.items || ['', '', ''];
+      }
+    } catch (e) {
+      // no entry for this date yet
+    }
+    return ['', '', ''];
+  }
+
+  async function setEntry(dateStr, values) {
+    return window.storage.set(`gratitude:${dateStr}`, JSON.stringify({
+      items: values,
+      savedAt: new Date().toISOString()
+    }), false);
+  }
+
+  async function listEntryKeys() {
+    try {
+      const res = await window.storage.list('gratitude:', false);
+      return (res && res.keys) ? res.keys : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  async function loadEntryForDate(dateStr) {
+    const values = await getEntry(dateStr);
+    inputs.forEach((el, i) => { el.value = values[i] || ''; autoGrow(el); });
+    renderStars(values);
+    updateBanner(values, dateStr);
+    updateHeaderForDate(dateStr);
+  }
+
+  async function goToDate(dateStr) {
+    if (dateStr > TODAY_KEY) dateStr = TODAY_KEY;
+    selectedDate = dateStr;
+    datePicker.value = dateStr;
+    saveMsg.textContent = '';
+    await loadEntryForDate(dateStr);
+    highlightActiveHistoryEntry();
+  }
+
+  datePicker.addEventListener('change', () => {
+    if (datePicker.value) goToDate(datePicker.value);
+  });
+  prevDayBtn.addEventListener('click', () => goToDate(addDays(selectedDate, -1)));
+  nextDayBtn.addEventListener('click', () => {
+    if (selectedDate < TODAY_KEY) goToDate(addDays(selectedDate, 1));
+  });
+  todayJumpBtn.addEventListener('click', () => goToDate(TODAY_KEY));
 
   inputs.forEach(input => {
     input.addEventListener('input', () => {
       const values = currentValues();
       renderStars(values);
-      updateBanner(values);
+      updateBanner(values, selectedDate);
     });
   });
-
-  async function loadToday() {
-    try {
-      const raw = localStorage.getItem(`gratitude:${todayKey()}`);
-      if (raw) {
-        const data = JSON.parse(raw);
-        (data.items || []).forEach((v, i) => { if (inputs[i]) inputs[i].value = v; });
-      }
-    } catch (e) {
-      // no entry yet for today
-    }
-    const values = currentValues();
-    renderStars(values);
-    updateBanner(values);
-  }
 
   saveBtn.addEventListener('click', async () => {
     const values = currentValues();
@@ -450,41 +667,30 @@
       return;
     }
     saveBtn.disabled = true;
-    saveBtn.textContent = 'Saving…';
+    const savingLabel = selectedDate === TODAY_KEY ? 'Saving…' : 'Saving…';
+    saveBtn.textContent = savingLabel;
     try {
-      localStorage.setItem(`gratitude:${todayKey()}`, JSON.stringify({
-        items: values,
-        savedAt: new Date().toISOString()
-      }));
+      await setEntry(selectedDate, values);
       saveMsg.style.color = '#7a9b6e';
-      saveMsg.textContent = 'Saved. See you tomorrow.';
-      updateBanner(values);
+      saveMsg.textContent = selectedDate === TODAY_KEY ? 'Saved. See you tomorrow.' : 'Saved that day.';
+      updateBanner(values, selectedDate);
       await loadHistory();
     } catch (e) {
       saveMsg.style.color = '#a8654f';
       saveMsg.textContent = 'Could not save — please try again.';
     } finally {
       saveBtn.disabled = false;
-      saveBtn.textContent = "Save today's gratitude";
+      updateHeaderForDate(selectedDate);
     }
   });
 
   // ---------- History + streak ----------
-  function dateFromKey(key) {
-    const [, y, m, d] = key.match(/^gratitude:(\d{4})-(\d{2})-(\d{2})$/) || [];
-    if (!y) return null;
-    return new Date(Number(y), Number(m) - 1, Number(d));
-  }
-
   function computeStreak(dateStrs) {
     const set = new Set(dateStrs);
     let streak = 0;
     let cursor = new Date();
     while (true) {
-      const y = cursor.getFullYear();
-      const m = String(cursor.getMonth() + 1).padStart(2, '0');
-      const d = String(cursor.getDate()).padStart(2, '0');
-      const key = `${y}-${m}-${d}`;
+      const key = keyFromDate(cursor);
       if (set.has(key)) {
         streak++;
         cursor.setDate(cursor.getDate() - 1);
@@ -495,41 +701,46 @@
     return streak;
   }
 
+  let historyEntries = [];
+
+  function highlightActiveHistoryEntry() {
+    document.querySelectorAll('.entry').forEach(el => {
+      el.classList.toggle('active', el.dataset.date === selectedDate);
+    });
+  }
+
   async function loadHistory() {
     const listEl = document.getElementById('historyList');
     const streakEl = document.getElementById('streakLabel');
     try {
-      const keys = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (k && k.startsWith('gratitude:')) keys.push(k);
-      }
+      const keys = await listEntryKeys();
       keys.sort().reverse();
 
       if (keys.length === 0) {
         listEl.innerHTML = '<div class="empty-history">Your reflections will appear here once you save your first one.</div>';
         streakEl.textContent = '';
+        historyEntries = [];
         return;
       }
 
       const entries = [];
       for (const key of keys.slice(0, 14)) {
-        try {
-          const raw = localStorage.getItem(key);
-          if (raw) {
-            const data = JSON.parse(raw);
-            entries.push({ key, items: (data.items || []).filter(v => v && v.trim()) });
-          }
-        } catch (e) { /* skip */ }
+        const dateStr = key.replace('gratitude:', '');
+        const items = (await getEntry(dateStr)).filter(v => v && v.trim());
+        entries.push({ dateStr, items });
       }
+      historyEntries = entries;
 
-      listEl.innerHTML = entries.map(e => {
-        const dateStr = e.key.replace('gratitude:', '');
-        return `<div class="entry">
-          <div class="entry-date">${formatDateLabel(dateStr)}</div>
+      listEl.innerHTML = entries.map(e => `
+        <div class="entry" data-date="${e.dateStr}">
+          <div class="entry-date">${formatDateLabel(e.dateStr)}</div>
           <ul>${e.items.map(i => `<li>${escapeHTML(i)}</li>`).join('')}</ul>
-        </div>`;
-      }).join('') || '<div class="empty-history">No entries yet.</div>';
+        </div>`).join('') || '<div class="empty-history">No entries yet.</div>';
+
+      listEl.querySelectorAll('.entry').forEach(el => {
+        el.addEventListener('click', () => goToDate(el.dataset.date));
+      });
+      highlightActiveHistoryEntry();
 
       const dateStrs = keys.map(k => k.replace('gratitude:', ''));
       const streak = computeStreak(dateStrs);
@@ -551,8 +762,44 @@
   }
   inputs.forEach(el => el.addEventListener('input', () => autoGrow(el)));
 
-  loadToday().then(() => inputs.forEach(autoGrow));
-  loadHistory();
+  // ---------- Inspirational quote (SNHU "Quotes About Life") ----------
+  const LIFE_QUOTES = [
+    { text: "Twenty years from now you will be more disappointed by the things that you didn't do than by the ones you did do. So throw off the bowlines. Sail away from the safe harbor. Catch the trade winds in your sails. Explore. Dream. Discover.", author: "Mark Twain" },
+    { text: "We are products of our past, but we don't have to be prisoners of it.", author: "Rick Warren" },
+    { text: "You can waste your lives drawing lines. Or you can live your life crossing them.", author: "Shonda Rhimes" },
+    { text: "You are the one that possesses the keys to your being. You carry the passport to your own happiness.", author: "Diane von Furstenberg" },
+    { text: "When you get into a tight place and everything goes against you… never give up then, for that is just the place and time that the tide will turn.", author: "Harriet Beecher Stowe" },
+    { text: "Accept responsibility for your life. Know that it is you who will get you where you want to go, no one else.", author: "Les Brown" },
+    { text: "Once we believe in ourselves, we can risk curiosity, wonder, spontaneous delight, or any experience that reveals the human spirit.", author: "e.e. cummings" },
+    { text: "If you don't make the time to work on creating the life you want, you're eventually going to be forced to spend a lot of time dealing with a life you don't want.", author: "Kevin Ngo" },
+    { text: "It is never too late to be who you might have been.", author: "George Eliot" },
+    { text: "The way I see it, if you want the rainbow, you gotta put up with the rain.", author: "Dolly Parton" }
+  ];
+
+  const quoteText = document.getElementById('quoteText');
+  const quoteAuthor = document.getElementById('quoteAuthor');
+  const quoteRefresh = document.getElementById('quoteRefresh');
+  let lastQuoteIdx = -1;
+
+  function showRandomQuote() {
+    let idx = Math.floor(Math.random() * LIFE_QUOTES.length);
+    if (LIFE_QUOTES.length > 1 && idx === lastQuoteIdx) {
+      idx = (idx + 1) % LIFE_QUOTES.length;
+    }
+    lastQuoteIdx = idx;
+    const q = LIFE_QUOTES[idx];
+    quoteText.textContent = `“${q.text}”`;
+    quoteAuthor.textContent = `— ${q.author}`;
+  }
+  quoteRefresh.addEventListener('click', showRandomQuote);
+  showRandomQuote();
+
+  // ---------- Init ----------
+  (async () => {
+    updateHeaderForDate(selectedDate);
+    await loadEntryForDate(selectedDate);
+    await loadHistory();
+  })();
 </script>
 </body>
 </html>

@@ -676,6 +676,11 @@
   }
 
   // ---------- Storage (persistent, per-user) ----------
+  // Small helper: wait `ms` milliseconds.
+  function wait(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
   async function getEntry(dateStr) {
     try {
       const res = await window.storage.get(`gratitude:${dateStr}`, false);
@@ -684,16 +689,48 @@
         return data.items || ['', '', '', ''];
       }
     } catch (e) {
-      // no entry for this date yet
+      // no entry for this date yet — this is expected, not an error
     }
     return ['', '', '', ''];
   }
 
-  async function setEntry(dateStr, values) {
-    return window.storage.set(`gratitude:${dateStr}`, JSON.stringify({
+  // Attempts a single storage.set call. Throws a descriptive error if the
+  // write did not actually succeed (either because it threw, or because it
+  // resolved with null/undefined, which the storage API also uses to signal
+  // failure without necessarily throwing).
+  async function trySetEntry(dateStr, values) {
+    const result = await window.storage.set(`gratitude:${dateStr}`, JSON.stringify({
       items: values,
       savedAt: new Date().toISOString()
     }), false);
+
+    if (!result) {
+      throw new Error('Storage returned no confirmation for the write.');
+    }
+    return result;
+  }
+
+  // Public save function: retries once after a short delay if the first
+  // attempt fails, and surfaces the real error message on final failure
+  // instead of a generic one.
+  async function setEntry(dateStr, values) {
+    if (!window.storage || typeof window.storage.set !== 'function') {
+      throw new Error('Storage is not available in this environment yet.');
+    }
+    try {
+      return await trySetEntry(dateStr, values);
+    } catch (firstErr) {
+      // Brief pause, then one retry — handles transient failures without
+      // making the user manually click Save again.
+      await wait(600);
+      try {
+        return await trySetEntry(dateStr, values);
+      } catch (secondErr) {
+        // Surface the more informative of the two errors.
+        const message = (secondErr && secondErr.message) || (firstErr && firstErr.message) || 'Unknown storage error.';
+        throw new Error(message);
+      }
+    }
   }
 
   async function listEntryKeys() {
@@ -758,7 +795,8 @@
       await loadHistory();
     } catch (e) {
       saveMsg.style.color = '#a8654f';
-      saveMsg.textContent = 'Could not save — please try again.';
+      const reason = (e && e.message) ? e.message : 'please try again.';
+      saveMsg.textContent = `Could not save — ${reason}`;
     } finally {
       saveBtn.disabled = false;
       updateHeaderForDate(selectedDate);
@@ -874,7 +912,7 @@
     }
     lastQuoteIdx = idx;
     const q = LIFE_QUOTES[idx];
-    quoteText.textContent = `“${q.text}”`;
+    quoteText.textContent = `"${q.text}"`;
     quoteAuthor.textContent = `— ${q.author}`;
   }
   quoteRefresh.addEventListener('click', showRandomQuote);

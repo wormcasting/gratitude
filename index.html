@@ -562,8 +562,6 @@
   let selectedDate = TODAY_KEY;
 
   // ---------- Rotating, specific gratitude prompts ----------
-  // Each prompt nudges toward ONE concrete, nameable moment rather than a
-  // generic category, and rotates daily so entries stay fresh and specific.
   const PROMPT_POOL = [
     { text: "What made your day a little better?", placeholder: "Name them something you did for yourself or others for you …" },
     { text: "What's one small moment today you'd like to live again?", placeholder: "A moment worth replaying…" },
@@ -580,8 +578,6 @@
 
   function getPromptsForDate(dateStr) {
     const n = PROMPT_POOL.length;
-    // step by 2 each day so the trio of prompts reshuffles meaningfully
-    // instead of just sliding by one (which repeats 2 of 3 prompts daily)
     const start = ((dayIndex(dateStr) * 2) % n + n) % n;
     return [0, 1, 2].map(i => PROMPT_POOL[(start + i) % n]);
   }
@@ -675,64 +671,62 @@
     nextDayBtn.disabled = dateStr >= TODAY_KEY;
   }
 
-// ---------- Storage (persistent, per-user) ----------
-// Small helper: wait `ms` milliseconds.
-function wait(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
+  // ---------- Storage (persistent, per-user) ----------
+  function wait(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
 
-async function getEntry(dateStr) {
-  try {
-    const res = localStorage.getItem(`gratitude:${dateStr}`);
-    if (res) {
-      const data = JSON.parse(res);
-      return data.items || ['', '', '', ''];
+  async function getEntry(dateStr) {
+    try {
+      const res = localStorage.getItem(`gratitude:${dateStr}`);
+      if (res) {
+        const data = JSON.parse(res);
+        return data.items || ['', '', '', ''];
+      }
+    } catch (e) {
+      // no entry for this date yet
     }
-  } catch (e) {
-    // no entry for this date yet — this is expected, not an error
+    return ['', '', '', ''];
   }
-  return ['', '', '', ''];
-}
 
-// Attempts a single localStorage.setItem call.
-async function trySetEntry(dateStr, values) {
-  try {
-    const payload = JSON.stringify({
-      items: values,
-      savedAt: new Date().toISOString()
-    });
-    localStorage.setItem(`gratitude:${dateStr}`, payload);
-    return true; // assume success if no error thrown
-  } catch (e) {
-    throw new Error('Storage write failed: ' + e.message);
+  async function trySetEntry(dateStr, values) {
+    try {
+      const payload = JSON.stringify({
+        items: values,
+        savedAt: new Date().toISOString()
+      });
+      localStorage.setItem(`gratitude:${dateStr}`, payload);
+      return true;
+    } catch (e) {
+      throw new Error('Storage write failed: ' + e.message);
+    }
   }
-}
 
-// Public save function: retries once after a short delay if the first fails
-async function setEntry(dateStr, values) {
-  if (!window.localStorage) {
-    throw new Error('localStorage is not available in this environment.');
-  }
-  try {
-    return await trySetEntry(dateStr, values);
-  } catch (firstErr) {
-    await wait(600);
+  async function setEntry(dateStr, values) {
+    if (!window.localStorage) {
+      throw new Error('localStorage is not available in this environment.');
+    }
     try {
       return await trySetEntry(dateStr, values);
-    } catch (secondErr) {
-      const message = (secondErr && secondErr.message) || (firstErr && firstErr.message) || 'Unknown storage error.';
-      throw new Error(message);
+    } catch (firstErr) {
+      await wait(600);
+      try {
+        return await trySetEntry(dateStr, values);
+      } catch (secondErr) {
+        const message = (secondErr && secondErr.message) || (firstErr && firstErr.message) || 'Unknown storage error.';
+        throw new Error(message);
+      }
     }
   }
-}
 
-async function listEntryKeys() {
-  try {
-    return Object.keys(localStorage).filter(k => k.startsWith('gratitude:'));
-  } catch (e) {
-    return [];
+  async function listEntryKeys() {
+    try {
+      return Object.keys(localStorage).filter(k => k.startsWith('gratitude:'));
+    } catch (e) {
+      return [];
+    }
   }
-}
+
   // ---------- History + streak ----------
   function computeStreak(dateStrs) {
     const set = new Set(dateStrs);
@@ -814,9 +808,76 @@ async function listEntryKeys() {
     el.style.height = 'auto';
     el.style.height = el.scrollHeight + 'px';
   }
-  inputs.forEach(el => el.addEventListener('input', () => autoGrow(el)));
 
-  // ---------- Inspirational quote (SNHU "Quotes About Life") ----------
+  // ---------- Navigation & Page Loading ----------
+  async function loadEntryForDate(dateStr) {
+    selectedDate = dateStr;
+    datePicker.value = dateStr;
+    updateHeaderForDate(dateStr);
+    applyPromptsForDate(dateStr);
+
+    const values = await getEntry(dateStr);
+    inputs.forEach((input, i) => {
+      input.value = values[i] || '';
+      autoGrow(input);
+    });
+
+    renderStars(values);
+    updateBanner(values, dateStr);
+    highlightActiveHistoryEntry();
+  }
+
+  function goToDate(dateStr) {
+    loadEntryForDate(dateStr);
+  }
+
+  // ---------- Dynamic Input & Event Listeners ----------
+  inputs.forEach(el => {
+    el.addEventListener('input', () => {
+      autoGrow(el);
+      const vals = currentValues();
+      renderStars(vals);
+      updateBanner(vals, selectedDate);
+    });
+  });
+
+  saveBtn.addEventListener('click', async () => {
+    saveBtn.disabled = true;
+    saveMsg.textContent = 'Saving...';
+    try {
+      await setEntry(selectedDate, currentValues());
+      saveMsg.textContent = 'Saved successfully!';
+      await loadHistory();
+      setTimeout(() => { saveMsg.textContent = ''; }, 3000);
+    } catch (err) {
+      saveMsg.textContent = 'Error saving entry. Please try again.';
+      console.error(err);
+    } finally {
+      saveBtn.disabled = false;
+    }
+  });
+
+  prevDayBtn.addEventListener('click', () => {
+    loadEntryForDate(addDays(selectedDate, -1));
+  });
+
+  nextDayBtn.addEventListener('click', () => {
+    if (selectedDate < TODAY_KEY) {
+      loadEntryForDate(addDays(selectedDate, 1));
+    }
+  });
+
+  todayJumpBtn.addEventListener('click', () => {
+    loadEntryForDate(TODAY_KEY);
+  });
+
+  datePicker.addEventListener('change', (e) => {
+    if (e.target.value) {
+      loadEntryForDate(e.target.value);
+    }
+  });
+
+  // ---------- Inspirational quote ----------
   const LIFE_QUOTES = [
     { text: "Twenty years from now you will be more disappointed by the things that you didn't do than by the ones you did do. So throw off the bowlines. Sail away from the safe harbor. Catch the trade winds in your sails. Explore. Dream. Discover.", author: "Mark Twain" },
     { text: "We are products of our past, but we don't have to be prisoners of it.", author: "Rick Warren" },
@@ -850,7 +911,6 @@ async function listEntryKeys() {
 
   // ---------- Init ----------
   (async () => {
-    updateHeaderForDate(selectedDate);
     await loadEntryForDate(selectedDate);
     await loadHistory();
   })();

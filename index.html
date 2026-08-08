@@ -565,7 +565,7 @@
   // Each prompt nudges toward ONE concrete, nameable moment rather than a
   // generic category, and rotates daily so entries stay fresh and specific.
   const PROMPT_POOL = [
-    { text: "Who/What made your day a little better, and what did they/you do?", placeholder: "Name them, and what they/you did…" },
+    { text: "What made your day a little better?", placeholder: "Name them something you did for yourself or others for you …" },
     { text: "What's one small moment today you'd like to live again?", placeholder: "A moment worth replaying…" },
     { text: "What was hard today that you're still, somehow, grateful for?", placeholder: "Something that stretched you…" },
     { text: "What's something you saw, heard, tasted, or felt today that you appreciated?", placeholder: "A sensory detail, however small…" },
@@ -675,134 +675,64 @@
     nextDayBtn.disabled = dateStr >= TODAY_KEY;
   }
 
-  // ---------- Storage (persistent, per-user) ----------
-  // Small helper: wait `ms` milliseconds.
-  function wait(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
+// ---------- Storage (persistent, per-user) ----------
+// Small helper: wait `ms` milliseconds.
+function wait(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
-  async function getEntry(dateStr) {
-    try {
-      const res = await window.storage.get(`gratitude:${dateStr}`, false);
-      if (res && res.value) {
-        const data = JSON.parse(res.value);
-        return data.items || ['', '', '', ''];
-      }
-    } catch (e) {
-      // no entry for this date yet — this is expected, not an error
+async function getEntry(dateStr) {
+  try {
+    const res = localStorage.getItem(`gratitude:${dateStr}`);
+    if (res) {
+      const data = JSON.parse(res);
+      return data.items || ['', '', '', ''];
     }
-    return ['', '', '', ''];
+  } catch (e) {
+    // no entry for this date yet — this is expected, not an error
   }
+  return ['', '', '', ''];
+}
 
-  // Attempts a single storage.set call. Throws a descriptive error if the
-  // write did not actually succeed (either because it threw, or because it
-  // resolved with null/undefined, which the storage API also uses to signal
-  // failure without necessarily throwing).
-  async function trySetEntry(dateStr, values) {
-    const result = await window.storage.set(`gratitude:${dateStr}`, JSON.stringify({
+// Attempts a single localStorage.setItem call.
+async function trySetEntry(dateStr, values) {
+  try {
+    const payload = JSON.stringify({
       items: values,
       savedAt: new Date().toISOString()
-    }), false);
-
-    if (!result) {
-      throw new Error('Storage returned no confirmation for the write.');
-    }
-    return result;
+    });
+    localStorage.setItem(`gratitude:${dateStr}`, payload);
+    return true; // assume success if no error thrown
+  } catch (e) {
+    throw new Error('Storage write failed: ' + e.message);
   }
+}
 
-  // Public save function: retries once after a short delay if the first
-  // attempt fails, and surfaces the real error message on final failure
-  // instead of a generic one.
-  async function setEntry(dateStr, values) {
-    if (!window.storage || typeof window.storage.set !== 'function') {
-      throw new Error('Storage is not available in this environment yet.');
-    }
+// Public save function: retries once after a short delay if the first fails
+async function setEntry(dateStr, values) {
+  if (!window.localStorage) {
+    throw new Error('localStorage is not available in this environment.');
+  }
+  try {
+    return await trySetEntry(dateStr, values);
+  } catch (firstErr) {
+    await wait(600);
     try {
       return await trySetEntry(dateStr, values);
-    } catch (firstErr) {
-      // Brief pause, then one retry — handles transient failures without
-      // making the user manually click Save again.
-      await wait(600);
-      try {
-        return await trySetEntry(dateStr, values);
-      } catch (secondErr) {
-        // Surface the more informative of the two errors.
-        const message = (secondErr && secondErr.message) || (firstErr && firstErr.message) || 'Unknown storage error.';
-        throw new Error(message);
-      }
+    } catch (secondErr) {
+      const message = (secondErr && secondErr.message) || (firstErr && firstErr.message) || 'Unknown storage error.';
+      throw new Error(message);
     }
   }
+}
 
-  async function listEntryKeys() {
-    try {
-      const res = await window.storage.list('gratitude:', false);
-      return (res && res.keys) ? res.keys : [];
-    } catch (e) {
-      return [];
-    }
+async function listEntryKeys() {
+  try {
+    return Object.keys(localStorage).filter(k => k.startsWith('gratitude:'));
+  } catch (e) {
+    return [];
   }
-
-  async function loadEntryForDate(dateStr) {
-    applyPromptsForDate(dateStr);
-    const values = await getEntry(dateStr);
-    inputs.forEach((el, i) => { el.value = values[i] || ''; autoGrow(el); });
-    renderStars(values);
-    updateBanner(values, dateStr);
-    updateHeaderForDate(dateStr);
-  }
-
-  async function goToDate(dateStr) {
-    if (dateStr > TODAY_KEY) dateStr = TODAY_KEY;
-    selectedDate = dateStr;
-    datePicker.value = dateStr;
-    saveMsg.textContent = '';
-    await loadEntryForDate(dateStr);
-    highlightActiveHistoryEntry();
-  }
-
-  datePicker.addEventListener('change', () => {
-    if (datePicker.value) goToDate(datePicker.value);
-  });
-  prevDayBtn.addEventListener('click', () => goToDate(addDays(selectedDate, -1)));
-  nextDayBtn.addEventListener('click', () => {
-    if (selectedDate < TODAY_KEY) goToDate(addDays(selectedDate, 1));
-  });
-  todayJumpBtn.addEventListener('click', () => goToDate(TODAY_KEY));
-
-  inputs.forEach(input => {
-    input.addEventListener('input', () => {
-      const values = currentValues();
-      renderStars(values);
-      updateBanner(values, selectedDate);
-    });
-  });
-
-  saveBtn.addEventListener('click', async () => {
-    const values = currentValues();
-    const filledCount = values.filter(v => v.trim()).length;
-    if (filledCount === 0) {
-      saveMsg.style.color = '#a8654f';
-      saveMsg.textContent = 'Write at least one thing before saving.';
-      return;
-    }
-    saveBtn.disabled = true;
-    saveBtn.textContent = 'Saving…';
-    try {
-      await setEntry(selectedDate, values);
-      saveMsg.style.color = '#7a9b6e';
-      saveMsg.textContent = selectedDate === TODAY_KEY ? 'Saved. See you tomorrow.' : 'Saved that day.';
-      updateBanner(values, selectedDate);
-      await loadHistory();
-    } catch (e) {
-      saveMsg.style.color = '#a8654f';
-      const reason = (e && e.message) ? e.message : 'please try again.';
-      saveMsg.textContent = `Could not save — ${reason}`;
-    } finally {
-      saveBtn.disabled = false;
-      updateHeaderForDate(selectedDate);
-    }
-  });
-
+}
   // ---------- History + streak ----------
   function computeStreak(dateStrs) {
     const set = new Set(dateStrs);

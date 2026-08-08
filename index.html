@@ -24,6 +24,8 @@
     --gold-soft: #f4c978;
     --rose: #e8927c;
     --rose-soft: #f7ded6;
+    --green: #7a9b6e;
+    --green-soft: #e4ede0;
     --star-off: rgba(255,255,255,0.18);
   }
 
@@ -155,13 +157,13 @@
   .stars-row {
     display: flex;
     justify-content: center;
-    gap: 18px;
+    gap: 16px;
     margin-bottom: 22px;
   }
 
   .star {
-    width: 30px;
-    height: 30px;
+    width: 26px;
+    height: 26px;
     transition: transform 0.25s ease, filter 0.25s ease;
   }
   .star svg { width: 100%; height: 100%; display: block; }
@@ -171,6 +173,25 @@
   @keyframes pulse {
     0%, 100% { transform: scale(1); opacity: 0.55; }
     50% { transform: scale(1.12); opacity: 1; }
+  }
+
+  .section-label {
+    font-size: 10.5px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    font-weight: 600;
+    margin: 22px 0 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-label:first-of-type { margin-top: 0; }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--paper-edge);
   }
 
   .field {
@@ -185,6 +206,7 @@
     color: var(--ink-soft);
     margin-bottom: 6px;
     font-weight: 500;
+    line-height: 1.35;
   }
 
   .field label .num {
@@ -192,6 +214,11 @@
     font-size: 15px;
     color: var(--gold);
     font-weight: 600;
+    flex-shrink: 0;
+  }
+
+  .field.tiny-win label .num {
+    color: var(--green);
   }
 
   .field textarea {
@@ -213,6 +240,11 @@
     outline: none;
     border-color: var(--gold);
     box-shadow: 0 0 0 3px rgba(232, 163, 61, 0.18);
+  }
+
+  .field.tiny-win textarea:focus {
+    border-color: var(--green);
+    box-shadow: 0 0 0 3px rgba(122, 155, 110, 0.18);
   }
 
   .field textarea::placeholder { color: #b9b1c4; }
@@ -384,6 +416,10 @@
     line-height: 1.6;
   }
 
+  .entry li.win-item {
+    color: var(--gold-soft);
+  }
+
   .empty-history {
     color: rgba(255,255,255,0.4);
     font-size: 13.5px;
@@ -422,17 +458,26 @@
   <div class="card">
     <div class="stars-row" id="starsRow"></div>
 
+    <div class="section-label">Gratitude</div>
+
     <div class="field">
-      <label><span class="num">1</span> Something that happened that day</label>
-      <textarea id="g0" rows="1" placeholder="A quiet win, a kind word, a good coffee…"></textarea>
+      <label><span class="num">1</span> <span id="promptText0"></span></label>
+      <textarea id="g0" rows="1" placeholder=""></textarea>
     </div>
     <div class="field">
-      <label><span class="num">2</span> Someone or something you appreciated</label>
-      <textarea id="g1" rows="1" placeholder="A person, a place, a small comfort…"></textarea>
+      <label><span class="num">2</span> <span id="promptText1"></span></label>
+      <textarea id="g1" rows="1" placeholder=""></textarea>
     </div>
     <div class="field">
-      <label><span class="num">3</span> Anything else, big or small</label>
-      <textarea id="g2" rows="1" placeholder="Whatever comes to mind…"></textarea>
+      <label><span class="num">3</span> <span id="promptText2"></span></label>
+      <textarea id="g2" rows="1" placeholder=""></textarea>
+    </div>
+
+    <div class="section-label">Progress</div>
+
+    <div class="field tiny-win">
+      <label><span class="num">＋</span> A tiny win toward the life you want</label>
+      <textarea id="g3" rows="1" placeholder="One small step, however small…"></textarea>
     </div>
 
     <button class="save-btn" id="saveBtn">Save today's gratitude</button>
@@ -516,6 +561,42 @@
   const TODAY_KEY = todayKey();
   let selectedDate = TODAY_KEY;
 
+  // ---------- Rotating, specific gratitude prompts ----------
+  // Each prompt nudges toward ONE concrete, nameable moment rather than a
+  // generic category, and rotates daily so entries stay fresh and specific.
+  const PROMPT_POOL = [
+    { text: "Who made your day a little better, and what did they do?", placeholder: "Name them, and what they did…" },
+    { text: "What's one small moment today you'd like to live again?", placeholder: "A moment worth replaying…" },
+    { text: "What was hard today that you're still, somehow, grateful for?", placeholder: "Something that stretched you…" },
+    { text: "What's something you saw, heard, tasted, or felt today that you appreciated?", placeholder: "A sensory detail, however small…" },
+    { text: "What's something that worked or existed today that you'd miss if it were gone?", placeholder: "Something easy to take for granted…" }
+  ];
+
+  function dayIndex(dateStr) {
+    const dt = dateFromDateStr(dateStr);
+    const epoch = new Date(2024, 0, 1);
+    return Math.floor((dt - epoch) / 86400000);
+  }
+
+  function getPromptsForDate(dateStr) {
+    const n = PROMPT_POOL.length;
+    // step by 2 each day so the trio of prompts reshuffles meaningfully
+    // instead of just sliding by one (which repeats 2 of 3 prompts daily)
+    const start = ((dayIndex(dateStr) * 2) % n + n) % n;
+    return [0, 1, 2].map(i => PROMPT_POOL[(start + i) % n]);
+  }
+
+  const promptTextEls = [document.getElementById('promptText0'), document.getElementById('promptText1'), document.getElementById('promptText2')];
+  const gratitudeInputs = [document.getElementById('g0'), document.getElementById('g1'), document.getElementById('g2')];
+
+  function applyPromptsForDate(dateStr) {
+    const prompts = getPromptsForDate(dateStr);
+    prompts.forEach((p, i) => {
+      promptTextEls[i].textContent = p.text;
+      gratitudeInputs[i].placeholder = p.placeholder;
+    });
+  }
+
   // ---------- Star indicator icons ----------
   const starsRow = document.getElementById('starsRow');
   function starSVG(filled) {
@@ -526,7 +607,7 @@
         stroke-width="1.6" stroke-linejoin="round"/>
     </svg>`;
   }
-  const starEls = [0,1,2].map(i => {
+  const starEls = [0,1,2,3].map(i => {
     const div = document.createElement('div');
     div.className = 'star';
     div.dataset.idx = i;
@@ -541,10 +622,10 @@
       el.classList.toggle('pulse', !filled);
     });
   }
-  renderStars(['', '', '']);
+  renderStars(['', '', '', '']);
 
   // ---------- Elements ----------
-  const inputs = [document.getElementById('g0'), document.getElementById('g1'), document.getElementById('g2')];
+  const inputs = [document.getElementById('g0'), document.getElementById('g1'), document.getElementById('g2'), document.getElementById('g3')];
   const saveBtn = document.getElementById('saveBtn');
   const saveMsg = document.getElementById('saveMsg');
   const banner = document.getElementById('banner');
@@ -566,7 +647,7 @@
   function updateBanner(values, dateStr) {
     const filledCount = values.filter(v => v.trim()).length;
     const dayWord = dateStr === TODAY_KEY ? 'today' : 'this day';
-    if (filledCount === 3) {
+    if (filledCount === 4) {
       banner.style.display = 'none';
     } else if (filledCount === 0) {
       banner.style.display = 'flex';
@@ -575,7 +656,7 @@
         : "Nothing noted for this day yet. Go ahead and fill it in from memory.";
     } else {
       banner.style.display = 'flex';
-      bannerText.textContent = `You've noted ${filledCount} of 3 for ${dayWord}. A couple more, when you're ready.`;
+      bannerText.textContent = `You've noted ${filledCount} of 4 for ${dayWord}. A couple more, when you're ready.`;
     }
   }
 
@@ -600,12 +681,12 @@
       const res = await window.storage.get(`gratitude:${dateStr}`, false);
       if (res && res.value) {
         const data = JSON.parse(res.value);
-        return data.items || ['', '', ''];
+        return data.items || ['', '', '', ''];
       }
     } catch (e) {
       // no entry for this date yet
     }
-    return ['', '', ''];
+    return ['', '', '', ''];
   }
 
   async function setEntry(dateStr, values) {
@@ -625,6 +706,7 @@
   }
 
   async function loadEntryForDate(dateStr) {
+    applyPromptsForDate(dateStr);
     const values = await getEntry(dateStr);
     inputs.forEach((el, i) => { el.value = values[i] || ''; autoGrow(el); });
     renderStars(values);
@@ -667,8 +749,7 @@
       return;
     }
     saveBtn.disabled = true;
-    const savingLabel = selectedDate === TODAY_KEY ? 'Saving…' : 'Saving…';
-    saveBtn.textContent = savingLabel;
+    saveBtn.textContent = 'Saving…';
     try {
       await setEntry(selectedDate, values);
       saveMsg.style.color = '#7a9b6e';
@@ -726,15 +807,20 @@
       const entries = [];
       for (const key of keys.slice(0, 14)) {
         const dateStr = key.replace('gratitude:', '');
-        const items = (await getEntry(dateStr)).filter(v => v && v.trim());
-        entries.push({ dateStr, items });
+        const raw = await getEntry(dateStr);
+        const gratitudeItems = raw.slice(0, 3).filter(v => v && v.trim());
+        const winItem = (raw[3] || '').trim();
+        entries.push({ dateStr, gratitudeItems, winItem });
       }
       historyEntries = entries;
 
       listEl.innerHTML = entries.map(e => `
         <div class="entry" data-date="${e.dateStr}">
           <div class="entry-date">${formatDateLabel(e.dateStr)}</div>
-          <ul>${e.items.map(i => `<li>${escapeHTML(i)}</li>`).join('')}</ul>
+          <ul>
+            ${e.gratitudeItems.map(i => `<li>${escapeHTML(i)}</li>`).join('')}
+            ${e.winItem ? `<li class="win-item">＋ ${escapeHTML(e.winItem)}</li>` : ''}
+          </ul>
         </div>`).join('') || '<div class="empty-history">No entries yet.</div>';
 
       listEl.querySelectorAll('.entry').forEach(el => {

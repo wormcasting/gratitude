@@ -419,3 +419,12 @@
     text-align: center;
     padding: 20px 0;
   }
+
+  .jsonexport button {
+    margin: 0;
+    padding-left: 18px;
+    color: rgba(255,255,255,0.82);
+    font-size: 14px;
+    line-height: 1.6;
+    margin-top: 10px; /* adds spacing above */
+}

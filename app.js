@@ -1,4 +1,73 @@
-  // ---------- Starfield background ----------
+
+const API_URL = 'http://localhost:3000/api';
+let token = localStorage.getItem('authToken');
+let currentUser = null;
+
+// Check if user is logged in
+if (token) {
+  verifyToken();
+} else {
+  showAuthPage();
+}
+
+async function verifyToken() {
+  try {
+    const res = await fetch(`${API_URL}/auth/me`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) {
+      currentUser = await res.json();
+      showJournalPage();
+      loadHistoryFromServer(); // Load entries from MongoDB
+    } else {
+      localStorage.removeItem('authToken');
+      showAuthPage();
+    }
+  } catch (err) {
+    console.error('Token verification failed:', err);
+    showAuthPage();
+  }
+}
+
+function showAuthPage() {
+  document.getElementById('authContainer').style.display = 'flex';
+  document.querySelector('.page').style.display = 'none';
+}
+
+function showJournalPage() {
+  document.getElementById('authContainer').style.display = 'none';
+  document.querySelector('.page').style.display = 'block';
+}
+
+// Handle Sign Up / Login
+document.getElementById('authForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('authEmail').value;
+  const password = document.getElementById('authPassword').value;
+  const endpoint = document.getElementById('authTitle').textContent === 'Sign Up' ? 'signup' : 'login';
+
+  try {
+    const res = await fetch(`${API_URL}/auth/${endpoint}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      token = data.token;
+      currentUser = data.user;
+      localStorage.setItem('authToken', token);
+      showJournalPage();
+      loadHistoryFromServer();
+    } else {
+      alert('Error: ' + (data.message || 'Authentication failed'));
+    }
+  } catch (err) {
+    alert('Error: ' + err.message);
+  }
+});
+
+// ---------- Starfield background ----------
   const canvas = document.getElementById('stars');
   const ctx = canvas.getContext('2d');
   let stars = [];
@@ -185,18 +254,57 @@
     return ['', '', '', ''];
   }
 
-  async function trySetEntry(dateStr, values) {
-    try {
-      const payload = JSON.stringify({
-        items: values,
-        savedAt: new Date().toISOString()
-      });
-      localStorage.setItem(`gratitude:${dateStr}`, payload);
-      return true;
-    } catch (e) {
-      throw new Error('Storage write failed: ' + e.message);
-    }
+ async function setEntry(dateStr, values) {
+  if (!token) {
+    // Fallback to localStorage if not logged in
+    return await trySetEntry(dateStr, values);
   }
+
+  try {
+    const res = await fetch(`${API_URL}/gratitudes`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        date: dateStr,
+        items: values.slice(0, 3),
+        win: values[3]
+      })
+    });
+    
+    if (!res.ok) throw new Error('Server error');
+    return true;
+  } catch (err) {
+    console.error('Failed to save to server:', err);
+    // Fallback to localStorage
+    return await trySetEntry(dateStr, values);
+  }
+}
+
+async function loadHistoryFromServer() {
+  if (!token) return;
+  
+  try {
+    const res = await fetch(`${API_URL}/gratitudes`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const entries = await res.json();
+    
+    // Convert server data to localStorage format for now
+    entries.forEach(entry => {
+      localStorage.setItem(`gratitude:${entry.date}`, JSON.stringify({
+        items: [...entry.items, entry.win || ''],
+        savedAt: entry.createdAt
+      }));
+    });
+    
+    await loadHistory();
+  } catch (err) {
+    console.error('Failed to load from server:', err);
+  }
+}
 
   async function setEntry(dateStr, values) {
     if (!window.localStorage) {

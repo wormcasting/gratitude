@@ -410,3 +410,35 @@
     await loadEntryForDate(selectedDate);
     await loadHistory();
   })();
+
+
+  // Export saved data to a JSON file (localStorage-focused).
+document.getElementById('export-btn').addEventListener('click', () => {
+  const preferredKey = 'gratitudes'; // change to your localStorage key if different
+  let data;
+
+  const raw = localStorage.getItem(preferredKey);
+  if (raw !== null) {
+    try { data = JSON.parse(raw); }
+    catch (e) { data = raw; }
+  } else {
+    // fallback: export all localStorage entries as an object
+    data = {};
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      const v = localStorage.getItem(k);
+      try { data[k] = JSON.parse(v); } catch (_) { data[k] = v; }
+    }
+  }
+
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'gratitude-export.json';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+});

@@ -1,5 +1,5 @@
 
-const API_URL = 'http://localhost:3000/api';
+const API_URL = 'https://gratitude-oc5d.onrender.com/api';
 let token = localStorage.getItem('authToken');
 let currentUser = null;
 

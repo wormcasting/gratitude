@@ -412,33 +412,88 @@
   })();
 
 
-  // Export saved data to a JSON file (localStorage-focused).
-document.getElementById('export-btn').addEventListener('click', () => {
-  const preferredKey = 'gratitudes'; // change to your localStorage key if different
+// export.js - mobile-friendly exporter with Web Share + fallbacks
+document.getElementById('export-btn').addEventListener('click', async () => {
+  const preferredKey = 'gratitudes'; // change to your key if needed
   let data;
 
   const raw = localStorage.getItem(preferredKey);
   if (raw !== null) {
-    try { data = JSON.parse(raw); }
-    catch (e) { data = raw; }
+    try { data = { [preferredKey]: JSON.parse(raw) }; } catch { data = { [preferredKey]: raw }; }
   } else {
-    // fallback: export all localStorage entries as an object
-    data = {};
+    data = { localStorage: {} };
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
       const v = localStorage.getItem(k);
-      try { data[k] = JSON.parse(v); } catch (_) { data[k] = v; }
+      try { data.localStorage[k] = JSON.parse(v); } catch { data.localStorage[k] = v; }
+    }
+    const cookieString = document.cookie;
+    if (cookieString) {
+      data.cookies = {};
+      cookieString.split('; ').forEach(pair => {
+        const [k, ...rest] = pair.split('=');
+        data.cookies[k] = decodeURIComponent(rest.join('='));
+      });
     }
   }
 
   const json = JSON.stringify(data, null, 2);
+  const filename = 'gratitude-export.json';
   const blob = new Blob([json], { type: 'application/json' });
+
+  // Try Web Share API (files) first — best UX on mobile when supported
+  try {
+    if (navigator.canShare && navigator.canShare({ files: [new File([blob], filename, { type: 'application/json' })] }) && navigator.share) {
+      const file = new File([blob], filename, { type: 'application/json' });
+      await navigator.share({
+        files: [file],
+        title: 'Gratitude export',
+        text: 'Your exported gratitude data'
+      });
+      return; // shared successfully
+    }
+  } catch (err) {
+    console.warn('Web Share failed or was cancelled:', err);
+    // Fall through to other approaches
+  }
+
+  // Next: try anchor download (works on many mobile browsers, but not all iOS)
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'gratitude-export.json';
+  a.download = filename;
+  a.rel = 'noopener';
   document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
+
+  try {
+    // Some browsers (iOS Safari) ignore the `download` attribute; check support
+    if ('download' in a) {
+      a.click();
+      document.body.removeChild(a);
+      // Revoke after a short delay to ensure the browser has time to start reading
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+      return;
+    } else {
+      // download not supported -> open in new tab so user can long-press to save
+      a.target = '_blank';
+      a.click();
+      document.body.removeChild(a);
+      // Give the user instructions in case the JSON opens in the browser
+      alert('If the file opened in your browser, long-press the page and choose "Save" or "Share" to keep the file.');
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      return;
+    }
+  } catch (err) {
+    console.warn('Anchor download attempt failed:', err);
+    // Last resort: open blob URL in new tab
+    try {
+      window.open(url, '_blank');
+      alert('Opened data in a new tab — long-press the page and choose "Save" or "Share" to keep the file.');
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    } catch (openErr) {
+      console.error('Could not open blob URL:', openErr);
+      alert('Export failed: your browser prevented the download. Try using Chrome or the device share sheet if available.');
+      URL.revokeObjectURL(url);
+    }
+  }
 });

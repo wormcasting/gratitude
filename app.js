@@ -3,7 +3,7 @@ let token = localStorage.getItem('authToken');
 let currentUser = null;
 
 // Check if user is logged in
-if (token) {
+if (token && token !== 'null' && token !== 'undefined') {
   verifyToken();
 } else {
   showAuthPage();
@@ -30,12 +30,14 @@ async function verifyToken() {
 
 function showAuthPage() {
   document.getElementById('authContainer').style.display = 'flex';
-  document.querySelector('.page').style.display = 'none';
+  const page = document.querySelector('.page');
+  if (page) page.style.display = 'none';
 }
 
 function showJournalPage() {
   document.getElementById('authContainer').style.display = 'none';
-  document.querySelector('.page').style.display = 'block';
+  const page = document.querySelector('.page');
+  if (page) page.style.display = 'block';
 }
 
 // Handle Sign Up / Login
@@ -45,8 +47,8 @@ document.getElementById('authForm').addEventListener('submit', async (e) => {
   const email = document.getElementById('authEmail').value;
   const password = document.getElementById('authPassword').value;
 
-  // Determine if this is a Sign Up or a Login request
-  const isSignUp = document.getElementById('authTitle').textContent.trim() === 'Sign Up';
+  // Flexible check for "Sign Up" vs "Login" regardless of exact whitespace
+  const isSignUp = document.getElementById('authTitle').textContent.trim().toLowerCase() === 'sign up';
   const endpoint = isSignUp ? 'signup' : 'login';
 
   try {
@@ -82,8 +84,7 @@ document.getElementById('authToggle').addEventListener('click', (e) => {
   const submitBtn = document.querySelector('#authForm button');
   const toggleText = document.getElementById('authToggle');
 
-  // Use .trim() to ignore any accidental spacing/newlines in HTML
-  if (title.textContent.trim() === 'Sign Up') {
+  if (title.textContent.trim().toLowerCase() === 'sign up') {
     title.textContent = 'Login';
     submitBtn.textContent = 'Login';
     toggleText.innerHTML = 'Need an account? <a href="#">Sign up</a>';
@@ -180,8 +181,8 @@ const gratitudeInputs = [document.getElementById('g0'), document.getElementById(
 function applyPromptsForDate(dateStr) {
   const prompts = getPromptsForDate(dateStr);
   prompts.forEach((p, i) => {
-    promptTextEls[i].textContent = p.text;
-    gratitudeInputs[i].placeholder = p.placeholder;
+    if (promptTextEls[i]) promptTextEls[i].textContent = p.text;
+    if (gratitudeInputs[i]) gratitudeInputs[i].placeholder = p.placeholder;
   });
 }
 
@@ -199,7 +200,7 @@ const starEls = [0,1,2,3].map(i => {
   const div = document.createElement('div');
   div.className = 'star';
   div.dataset.idx = i;
-  starsRow.appendChild(div);
+  if (starsRow) starsRow.appendChild(div);
   return div;
 });
 function renderStars(values) {
@@ -225,14 +226,17 @@ const prevDayBtn = document.getElementById('prevDay');
 const nextDayBtn = document.getElementById('nextDay');
 const todayJumpBtn = document.getElementById('todayJump');
 
-datePicker.max = TODAY_KEY;
-datePicker.value = selectedDate;
+if (datePicker) {
+  datePicker.max = TODAY_KEY;
+  datePicker.value = selectedDate;
+}
 
 function currentValues() {
-  return inputs.map(i => i.value);
+  return inputs.map(i => i ? i.value : '');
 }
 
 function updateBanner(values, dateStr) {
+  if (!banner || !bannerText) return;
   const filledCount = values.filter(v => v.trim()).length;
   const dayWord = dateStr === TODAY_KEY ? 'today' : 'this day';
   if (filledCount === 4) {
@@ -249,26 +253,26 @@ function updateBanner(values, dateStr) {
 }
 
 function updateHeaderForDate(dateStr) {
+  if (!headline || !dateLabel) return;
   if (dateStr === TODAY_KEY) {
     headline.textContent = 'Three good things';
     dateLabel.textContent = formatDateLabel(dateStr);
-    todayJumpBtn.style.display = 'none';
-    saveBtn.textContent = "Save today's gratitude";
+    if (todayJumpBtn) todayJumpBtn.style.display = 'none';
+    if (saveBtn) saveBtn.textContent = "Save today's gratitude";
   } else {
     headline.textContent = 'Looking back';
     dateLabel.textContent = formatDateLabel(dateStr);
-    todayJumpBtn.style.display = 'inline-block';
-    saveBtn.textContent = "Save this day's gratitude";
+    if (todayJumpBtn) todayJumpBtn.style.display = 'inline-block';
+    if (saveBtn) saveBtn.textContent = "Save this day's gratitude";
   }
-  nextDayBtn.disabled = dateStr >= TODAY_KEY;
+  if (nextDayBtn) nextDayBtn.disabled = dateStr >= TODAY_KEY;
 }
 
 // ---------- Storage (persistent, per-user) ----------
 
-// Helper function to save directly to local storage
 function trySetEntry(dateStr, values) {
   const payload = {
-    items: values.slice(0, 3),
+    items: values.slice(0, 3).filter(v => v !== undefined),
     win: values[3] || '',
     savedAt: new Date().toISOString()
   };
@@ -281,19 +285,24 @@ async function getEntry(dateStr) {
     const res = localStorage.getItem(`gratitude:${dateStr}`);
     if (res) {
       const data = JSON.parse(res);
-      return data.items || ['', '', '', ''];
+      const items = data.items || ['', '', ''];
+      return [items[0] || '', items[1] || '', items[2] || '', data.win || ''];
     }
   } catch (e) {
-    // no entry for this date yet
+    // fall back to empty
   }
   return ['', '', '', ''];
 }
 
-// Main save function mapping values to the database structure
+// Main save function mapping values to MongoDB Atlas
 async function setEntry(dateStr, values) {
-  if (!token) {
-    return trySetEntry(dateStr, values);
-  }
+  const itemsArray = values.slice(0, 3).filter(item => item && item.trim() !== '');
+  const winVal = values[3] || '';
+
+  // Local sync cache fallback
+  trySetEntry(dateStr, values);
+
+  if (!token) return true;
 
   try {
     const res = await fetch(`${API_URL}/gratitudes`, {
@@ -304,39 +313,44 @@ async function setEntry(dateStr, values) {
       },
       body: JSON.stringify({
         date: dateStr,
-        items: values.slice(0, 3),
-        win: values[3]
+        items: itemsArray,
+        win: winVal
       })
     });
-    
-    if (!res.ok) throw new Error('Server error');
-    
-    // Cache successfully synced records offline
-    trySetEntry(dateStr, values);
+
+    if (!res.ok) {
+      const errData = await res.json();
+      throw new Error(errData.error || 'Server error');
+    }
+
     return true;
   } catch (err) {
     console.error('Failed to save to server:', err);
-    return trySetEntry(dateStr, values);
+    throw err;
   }
 }
 
 async function loadHistoryFromServer() {
   if (!token) return;
-  
+
   try {
     const res = await fetch(`${API_URL}/gratitudes`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
-    const entries = await res.json();
     
-    // Convert server data to localStorage format
+    if (!res.ok) return;
+
+    const entries = await res.json();
+
+    // Store server data locally
     entries.forEach(entry => {
       localStorage.setItem(`gratitude:${entry.date}`, JSON.stringify({
-        items: [...entry.items, entry.win || ''],
+        items: entry.items || [],
+        win: entry.win || '',
         savedAt: entry.createdAt
       }));
     });
-    
+
     await loadHistory();
   } catch (err) {
     console.error('Failed to load from server:', err);
@@ -379,13 +393,15 @@ function highlightActiveHistoryEntry() {
 async function loadHistory() {
   const listEl = document.getElementById('historyList');
   const streakEl = document.getElementById('streakLabel');
+  if (!listEl) return;
+
   try {
     const keys = await listEntryKeys();
     keys.sort().reverse();
 
     if (keys.length === 0) {
       listEl.innerHTML = '<div class="empty-history">Your reflections will appear here once you save your first one.</div>';
-      streakEl.textContent = '';
+      if (streakEl) streakEl.textContent = '';
       historyEntries = [];
       return;
     }
@@ -416,7 +432,9 @@ async function loadHistory() {
 
     const dateStrs = keys.map(k => k.replace('gratitude:', ''));
     const streak = computeStreak(dateStrs);
-    streakEl.textContent = streak > 0 ? `${streak} day${streak === 1 ? '' : 's'} in a row` : '';
+    if (streakEl) {
+      streakEl.textContent = streak > 0 ? `${streak} day${streak === 1 ? '' : 's'} in a row` : '';
+    }
   } catch (e) {
     listEl.innerHTML = '<div class="empty-history">Could not load past entries.</div>';
   }
@@ -429,6 +447,7 @@ function escapeHTML(str) {
 }
 
 function autoGrow(el) {
+  if (!el) return;
   el.style.height = 'auto';
   el.style.height = el.scrollHeight + 'px';
 }
@@ -436,14 +455,16 @@ function autoGrow(el) {
 // ---------- Navigation & Page Loading ----------
 async function loadEntryForDate(dateStr) {
   selectedDate = dateStr;
-  datePicker.value = dateStr;
+  if (datePicker) datePicker.value = dateStr;
   updateHeaderForDate(dateStr);
   applyPromptsForDate(dateStr);
 
   const values = await getEntry(dateStr);
   inputs.forEach((input, i) => {
-    input.value = values[i] || '';
-    autoGrow(input);
+    if (input) {
+      input.value = values[i] || '';
+      autoGrow(input);
+    }
   });
 
   renderStars(values);
@@ -457,62 +478,47 @@ function goToDate(dateStr) {
 
 // ---------- Dynamic Input & Event Listeners ----------
 inputs.forEach(el => {
-  el.addEventListener('input', () => {
-    autoGrow(el);
-    const vals = currentValues();
-    renderStars(vals);
-    updateBanner(vals, selectedDate);
+  if (el) {
+    el.addEventListener('input', () => {
+      autoGrow(el);
+      const vals = currentValues();
+      renderStars(vals);
+      updateBanner(vals, selectedDate);
+    });
+  }
+});
+
+if (saveBtn) {
+  saveBtn.addEventListener('click', async () => {
+    saveBtn.disabled = true;
+    if (saveMsg) saveMsg.textContent = 'Saving...';
+    try {
+      await setEntry(selectedDate, currentValues());
+      if (saveMsg) saveMsg.textContent = 'Saved successfully to MongoDB Atlas!';
+      await loadHistory();
+      setTimeout(() => { if (saveMsg) saveMsg.textContent = ''; }, 3000);
+    } catch (err) {
+      if (saveMsg) saveMsg.textContent = 'Error: ' + err.message;
+      console.error(err);
+    } finally {
+      saveBtn.disabled = false;
+    }
   });
-});
+}
 
-saveBtn.addEventListener('click', async () => {
-  saveBtn.disabled = true;
-  saveMsg.textContent = 'Saving...';
-  try {
-    await setEntry(selectedDate, currentValues());
-    saveMsg.textContent = 'Saved successfully!';
-    await loadHistory();
-    setTimeout(() => { saveMsg.textContent = ''; }, 3000);
-  } catch (err) {
-    saveMsg.textContent = 'Error saving entry. Please try again.';
-    console.error(err);
-  } finally {
-    saveBtn.disabled = false;
-  }
-});
-
-prevDayBtn.addEventListener('click', () => {
-  loadEntryForDate(addDays(selectedDate, -1));
-});
-
-nextDayBtn.addEventListener('click', () => {
-  if (selectedDate < TODAY_KEY) {
-    loadEntryForDate(addDays(selectedDate, 1));
-  }
-});
-
-todayJumpBtn.addEventListener('click', () => {
-  loadEntryForDate(TODAY_KEY);
-});
-
-datePicker.addEventListener('change', (e) => {
-  if (e.target.value) {
-    loadEntryForDate(e.target.value);
-  }
-});
+if (prevDayBtn) prevDayBtn.addEventListener('click', () => loadEntryForDate(addDays(selectedDate, -1)));
+if (nextDayBtn) nextDayBtn.addEventListener('click', () => { if (selectedDate < TODAY_KEY) loadEntryForDate(addDays(selectedDate, 1)); });
+if (todayJumpBtn) todayJumpBtn.addEventListener('click', () => loadEntryForDate(TODAY_KEY));
+if (datePicker) datePicker.addEventListener('change', (e) => { if (e.target.value) loadEntryForDate(e.target.value); });
 
 // ---------- Inspirational quote ----------
 const LIFE_QUOTES = [
-  { text: "Twenty years from now you will be more disappointed by the things that you didn't do than by the ones you did do. So throw off the bowlines. Sail away from the safe harbor. Catch the trade winds in your sails. Explore. Dream. Discover.", author: "Mark Twain" },
+  { text: "Twenty years from now you will be more disappointed by the things that you didn't do than by the ones you did do.", author: "Mark Twain" },
   { text: "We are products of our past, but we don't have to be prisoners of it.", author: "Rick Warren" },
   { text: "You can waste your lives drawing lines. Or you can live your life crossing them.", author: "Shonda Rhimes" },
   { text: "You are the one that possesses the keys to your being. You carry the passport to your own happiness.", author: "Diane von Furstenberg" },
-  { text: "When you get into a tight place and everything goes against you… never give up then, for that is just the place and time that the tide will turn.", author: "Harriet Beecher Stowe" },
   { text: "Accept responsibility for your life. Know that it is you who will get you where you want to go, no one else.", author: "Les Brown" },
-  { text: "Once we believe in ourselves, we can risk curiosity, wonder, spontaneous delight, or any experience that reveals the human spirit.", author: "e.e. cummings" },
-  { text: "If you don't make the time to work on creating the life you want, you're eventually going to be forced to spend a lot of time dealing with a life you don't want.", author: "Kevin Ngo" },
-  { text: "It is never too late to be who you might have been.", author: "George Eliot" },
-  { text: "The way I see it, if you want the rainbow, you gotta put up with the rain.", author: "Dolly Parton" }
+  { text: "It is never too late to be who you might have been.", author: "George Eliot" }
 ];
 
 const quoteText = document.getElementById('quoteText');
@@ -521,6 +527,7 @@ const quoteRefresh = document.getElementById('quoteRefresh');
 let lastQuoteIdx = -1;
 
 function showRandomQuote() {
+  if (!quoteText || !quoteAuthor) return;
   let idx = Math.floor(Math.random() * LIFE_QUOTES.length);
   if (LIFE_QUOTES.length > 1 && idx === lastQuoteIdx) {
     idx = (idx + 1) % LIFE_QUOTES.length;
@@ -530,92 +537,73 @@ function showRandomQuote() {
   quoteText.textContent = `"${q.text}"`;
   quoteAuthor.textContent = `— ${q.author}`;
 }
-quoteRefresh.addEventListener('click', showRandomQuote);
+
+if (quoteRefresh) quoteRefresh.addEventListener('click', showRandomQuote);
 showRandomQuote();
 
 // ---------- Init ----------
 (async () => {
   await loadEntryForDate(selectedDate);
-  // Remove loadHistory() here since verifyToken already triggers it if logged in
   if (!token) {
     await loadHistory();
   }
 })();
 
-// export.js - mobile-friendly exporter with Web Share + fallbacks
-document.getElementById('export-btn').addEventListener('click', async () => {
-  // Modified to grab all offline entries matching our prefix pattern
-  let data = { entries: [] };
-  
-  for (let i = 0; i < localStorage.length; i++) {
-    const k = localStorage.key(i);
-    if (k.startsWith('gratitude:')) {
-       const v = localStorage.getItem(k);
-       try { 
-         data.entries.push({ date: k.replace('gratitude:', ''), ...JSON.parse(v) }); 
-       } catch { 
-         // pass
-       }
+// Mobile exporter
+const exportBtn = document.getElementById('export-btn');
+if (exportBtn) {
+  exportBtn.addEventListener('click', async () => {
+    let data = { entries: [] };
+    
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k.startsWith('gratitude:')) {
+        const v = localStorage.getItem(k);
+        try { 
+          data.entries.push({ date: k.replace('gratitude:', ''), ...JSON.parse(v) }); 
+        } catch {}
+      }
     }
-  }
 
-  const json = JSON.stringify(data, null, 2);
-  const filename = 'gratitude-export.json';
-  const blob = new Blob([json], { type: 'application/json' });
+    const json = JSON.stringify(data, null, 2);
+    const filename = 'gratitude-export.json';
+    const blob = new Blob([json], { type: 'application/json' });
 
-  // Try Web Share API (files) first — best UX on mobile when supported
-  try {
-    if (navigator.canShare && navigator.canShare({ files: [new File([blob], filename, { type: 'application/json' })] }) && navigator.share) {
-      const file = new File([blob], filename, { type: 'application/json' });
-      await navigator.share({
-        files: [file],
-        title: 'Gratitude export',
-        text: 'Your exported gratitude data'
-      });
-      return; // shared successfully
-    }
-  } catch (err) {
-    console.warn('Web Share failed or was cancelled:', err);
-    // Fall through to other approaches
-  }
-
-  // Next: try anchor download (works on many mobile browsers, but not all iOS)
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.rel = 'noopener';
-  document.body.appendChild(a);
-
-  try {
-    // Some browsers (iOS Safari) ignore the `download` attribute; check support
-    if ('download' in a) {
-      a.click();
-      document.body.removeChild(a);
-      // Revoke after a short delay to ensure the browser has time to start reading
-      setTimeout(() => URL.revokeObjectURL(url), 1500);
-      return;
-    } else {
-      // download not supported -> open in new tab so user can long-press to save
-      a.target = '_blank';
-      a.click();
-      document.body.removeChild(a);
-      // Give the user instructions in case the JSON opens in the browser
-      alert('If the file opened in your browser, long-press the page and choose "Save" or "Share" to keep the file.');
-      setTimeout(() => URL.revokeObjectURL(url), 10000);
-      return;
-    }
-  } catch (err) {
-    console.warn('Anchor download attempt failed:', err);
-    // Last resort: open blob URL in new tab
     try {
-      window.open(url, '_blank');
-      alert('Opened data in a new tab — long-press the page and choose "Save" or "Share" to keep the file.');
-      setTimeout(() => URL.revokeObjectURL(url), 10000);
-    } catch (openErr) {
-      console.error('Could not open blob URL:', openErr);
-      alert('Export failed: your browser prevented the download. Try using Chrome or the device share sheet if available.');
-      URL.revokeObjectURL(url);
+      if (navigator.canShare && navigator.canShare({ files: [new File([blob], filename, { type: 'application/json' })] }) && navigator.share) {
+        const file = new File([blob], filename, { type: 'application/json' });
+        await navigator.share({
+          files: [file],
+          title: 'Gratitude export',
+          text: 'Your exported gratitude data'
+        });
+        return;
+      }
+    } catch (err) {
+      console.warn('Web Share failed or was cancelled:', err);
     }
-  }
-});
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+
+    try {
+      if ('download' in a) {
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1500);
+      } else {
+        a.target = '_blank';
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
+      }
+    } catch (err) {
+      window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    }
+  });
+}

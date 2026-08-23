@@ -73,19 +73,21 @@ router.post('/signup', async (req, res) => {
 
 // LOGIN
 router.post('/login', [
-  body('email').isEmail(),
-  body('password').exists()
+  body('email').isEmail().withMessage('Please provide a valid email'),
+  body('password').exists().withMessage('Password is required')
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
+    // Return first error message clearly
+    return res.status(400).json({ error: errors.array()[0].msg });
   }
 
   try {
     const { email, password } = req.body;
+    const cleanEmail = email.toLowerCase().trim(); // Match clean email from signup
 
     // Find user
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: cleanEmail });
     if (!user) {
       return res.status(400).json({ error: 'Invalid credentials' });
     }

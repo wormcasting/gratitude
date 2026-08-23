@@ -256,7 +256,7 @@
     cursor: default;
   }
 
-  .save-msg, .submit {
+  .save-msg {
     text-align: center;
     font-size: 13px;
     color: #7a9b6e;
@@ -359,6 +359,14 @@
     color: #fbf5e8;
     font-weight: 500;
   }
+
+  .auth-card {
+    font-family: 'Fraunces', serif;
+    font-size: 16px;
+    color: #fbf5e8;
+    font-weight: 500;
+  }
+
 
    .authTitle, .date-nav {
     font-family: 'Fraunces', serif;

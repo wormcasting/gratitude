@@ -51,7 +51,9 @@ document.getElementById('authForm').addEventListener('submit', async (e) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password })
     });
+    
     const data = await res.json();
+    
     if (res.ok) {
       token = data.token;
       currentUser = data.user;
@@ -59,7 +61,9 @@ document.getElementById('authForm').addEventListener('submit', async (e) => {
       showJournalPage();
       loadHistoryFromServer();
     } else {
-      alert('Error: ' + (data.message || 'Authentication failed'));
+      // Handles both data.error and data.message formats
+      const errorMsg = data.error || data.message || (data.errors && data.errors[0]?.msg) || 'Authentication failed';
+      alert('Error: ' + errorMsg);
     }
   } catch (err) {
     alert('Error: ' + err.message);

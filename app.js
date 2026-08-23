@@ -312,7 +312,6 @@ async function setEntry(dateStr, values) {
         'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify({
-        title: `Gratitude Entry - ${dateStr}`, // Included to satisfy backend requirement
         date: dateStr,
         items: itemsArray,
         win: winVal

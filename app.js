@@ -45,9 +45,9 @@ document.getElementById('authForm').addEventListener('submit', async (e) => {
   const email = document.getElementById('authEmail').value;
   const password = document.getElementById('authPassword').value;
 
-  // 1. Flexible endpoint check (case-insensitive & handles spaces)
-  const titleText = document.getElementById('authTitle').textContent.toLowerCase();
-  const endpoint = titleText.includes('sign') ? 'signup' : 'login';
+  // Determine if this is a Sign Up or a Login request
+  const isSignUp = document.getElementById('authTitle').textContent.trim() === 'Sign Up';
+  const endpoint = isSignUp ? 'signup' : 'login';
 
   try {
     const res = await fetch(`${API_URL}/auth/${endpoint}`, {
@@ -63,21 +63,14 @@ document.getElementById('authForm').addEventListener('submit', async (e) => {
       currentUser = data.user;
       localStorage.setItem('authToken', token);
       showJournalPage();
+      loadHistoryFromServer();
     } else {
-      // 2. Parse errors from both plain strings and express-validator arrays
-      let errorMsg = 'Authentication failed';
-      if (data.error) {
-        errorMsg = data.error;
-      } else if (data.message) {
-        errorMsg = data.message;
-      } else if (data.errors && data.errors.length > 0) {
-        errorMsg = data.errors[0].msg;
-      }
-
+      // Handles single error strings as well as express-validator array messages
+      const errorMsg = data.error || data.message || (data.errors && data.errors[0]?.msg) || 'Authentication failed';
       alert('Error: ' + errorMsg);
     }
   } catch (err) {
-    console.error('Login error:', err);
+    console.error('Auth request error:', err);
     alert('Connection error: ' + err.message);
   }
 });

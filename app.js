@@ -312,6 +312,7 @@ async function setEntry(dateStr, values) {
         'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify({
+        title: `Gratitude Entry - ${dateStr}`, // Included to satisfy backend requirement
         date: dateStr,
         items: itemsArray,
         win: winVal
@@ -320,7 +321,7 @@ async function setEntry(dateStr, values) {
 
     if (!res.ok) {
       const errData = await res.json();
-      throw new Error(errData.error || 'Server error');
+      throw new Error(errData.error || errData.message || (errData.errors && errData.errors[0]?.msg) || 'Server error');
     }
 
     return true;

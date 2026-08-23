@@ -70,6 +70,24 @@ document.getElementById('authForm').addEventListener('submit', async (e) => {
   }
 });
 
+// Toggle between Sign Up and Login modes
+document.getElementById('authToggle').addEventListener('click', (e) => {
+  e.preventDefault();
+  const title = document.getElementById('authTitle');
+  const submitBtn = document.querySelector('#authForm button');
+  const toggleText = document.getElementById('authToggle');
+
+  if (title.textContent === 'Sign Up') {
+    title.textContent = 'Login';
+    submitBtn.textContent = 'Login';
+    toggleText.innerHTML = 'Need an account? <a href="#">Sign up</a>';
+  } else {
+    title.textContent = 'Sign Up';
+    submitBtn.textContent = 'Sign Up';
+    toggleText.innerHTML = 'Already have an account? <a href="#">Log in</a>';
+  }
+});
+
 // ---------- Starfield background ----------
 const canvas = document.getElementById('stars');
 const ctx = canvas.getContext('2d');

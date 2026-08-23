@@ -299,6 +299,11 @@ async function setEntry(dateStr, values) {
   const itemsArray = values.slice(0, 3).filter(item => item && item.trim() !== '');
   const winVal = values[3] || '';
 
+  // Prevent sending empty array if backend requires items.length > 0
+  if (itemsArray.length === 0) {
+    throw new Error('Please fill in at least one gratitude entry before saving.');
+  }
+
   // Local sync cache fallback
   trySetEntry(dateStr, values);
 
@@ -319,8 +324,16 @@ async function setEntry(dateStr, values) {
     });
 
     if (!res.ok) {
-      const errData = await res.json();
-      throw new Error(errData.error || errData.message || (errData.errors && errData.errors[0]?.msg) || 'Server error');
+      let rawText = '';
+      try {
+        const errData = await res.json();
+        throw new Error(errData.error || errData.message || (errData.errors && errData.errors[0]?.msg) || `HTTP ${res.status}`);
+      } catch (e) {
+        // Fallback if backend returned HTML or plain string error
+        if (e.message.startsWith('HTTP') || !e.message.includes('JSON')) throw e;
+        rawText = await res.text();
+        throw new Error(rawText || `Server responded with status ${res.status}`);
+      }
     }
 
     return true;

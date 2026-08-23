@@ -5,6 +5,33 @@ const User = require('../models/User');
 
 const router = express.Router();
 
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_for_debugging';
+
+// GET CURRENT USER (/api/auth/me)
+router.get('/me', async (req, res) => {
+  try {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) {
+      return res.status(401).json({ error: 'No token provided' });
+    }
+
+    // Verify token using JWT_SECRET
+    const decoded = jwt.verify(token, JWT_SECRET);
+
+    // Fetch user without returning the password
+    const user = await User.findById(decoded.userId).select('-password');
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ id: user._id, email: user.email });
+  } catch (error) {
+    res.status(401).json({ error: 'Invalid or expired token' });
+  }
+});
+
 // SIGNUP
 router.post('/signup', async (req, res) => {
   try {
@@ -32,11 +59,8 @@ router.post('/signup', async (req, res) => {
     user = new User({ email: cleanEmail, password });
     await user.save();
 
-    // 5. Check JWT Secret before signing
-    const secret = process.env.JWT_SECRET || 'fallback_secret_for_debugging';
-
-    // 6. Generate JWT token
-    const token = jwt.sign({ userId: user._id }, secret, {
+    // 5. Generate JWT token
+    const token = jwt.sign({ userId: user._id }, JWT_SECRET, {
       expiresIn: '7d'
     });
 
@@ -73,7 +97,7 @@ router.post('/login', [
     }
 
     // Generate token
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
+    const token = jwt.sign({ userId: user._id }, JWT_SECRET, {
       expiresIn: '7d'
     });
 

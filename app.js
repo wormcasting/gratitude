@@ -489,7 +489,7 @@ function goToDate(dateStr) {
   loadEntryForDate(dateStr);
 }
 
-// ---------- Dynamic Input & Event Listeners ----------
+// ---------- Dynamic Input & Event Listeners --------- 
 inputs.forEach(el => {
   if (el) {
     el.addEventListener('input', () => {

@@ -41,9 +41,13 @@ function showJournalPage() {
 // Handle Sign Up / Login
 document.getElementById('authForm').addEventListener('submit', async (e) => {
   e.preventDefault();
+
   const email = document.getElementById('authEmail').value;
   const password = document.getElementById('authPassword').value;
-  const endpoint = document.getElementById('authTitle').textContent === 'Sign Up' ? 'signup' : 'login';
+
+  // 1. Flexible endpoint check (case-insensitive & handles spaces)
+  const titleText = document.getElementById('authTitle').textContent.toLowerCase();
+  const endpoint = titleText.includes('sign') ? 'signup' : 'login';
 
   try {
     const res = await fetch(`${API_URL}/auth/${endpoint}`, {
@@ -51,22 +55,30 @@ document.getElementById('authForm').addEventListener('submit', async (e) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password })
     });
-    
+
     const data = await res.json();
-    
+
     if (res.ok) {
       token = data.token;
       currentUser = data.user;
       localStorage.setItem('authToken', token);
       showJournalPage();
-      loadHistoryFromServer();
     } else {
-      // Handles both data.error and data.message formats
-      const errorMsg = data.error || data.message || (data.errors && data.errors[0]?.msg) || 'Authentication failed';
+      // 2. Parse errors from both plain strings and express-validator arrays
+      let errorMsg = 'Authentication failed';
+      if (data.error) {
+        errorMsg = data.error;
+      } else if (data.message) {
+        errorMsg = data.message;
+      } else if (data.errors && data.errors.length > 0) {
+        errorMsg = data.errors[0].msg;
+      }
+
       alert('Error: ' + errorMsg);
     }
   } catch (err) {
-    alert('Error: ' + err.message);
+    console.error('Login error:', err);
+    alert('Connection error: ' + err.message);
   }
 });
 
@@ -77,7 +89,8 @@ document.getElementById('authToggle').addEventListener('click', (e) => {
   const submitBtn = document.querySelector('#authForm button');
   const toggleText = document.getElementById('authToggle');
 
-  if (title.textContent === 'Sign Up') {
+  // Use .trim() to ignore any accidental spacing/newlines in HTML
+  if (title.textContent.trim() === 'Sign Up') {
     title.textContent = 'Login';
     submitBtn.textContent = 'Login';
     toggleText.innerHTML = 'Need an account? <a href="#">Sign up</a>';

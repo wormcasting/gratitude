@@ -4,51 +4,53 @@ const Gratitude = require('../models/Gratitude');
 
 const router = express.Router();
 
-// CREATE gratitude (protected)
+// CREATE / UPDATE Daily Gratitude (Protected)
 router.post('/', auth, async (req, res) => {
   try {
-    const { title, description, isPrivate } = req.body;
+    const { date, items, win } = req.body;
 
-    if (!title) {
-      return res.status(400).json({ error: 'Title is required' });
+    // 1. Validation
+    if (!date) {
+      return res.status(400).json({ error: 'Date is required' });
     }
 
-    const gratitude = new Gratitude({
-      userId: req.userId,
-      title,
-      description,
-      isPrivate: isPrivate !== false
-    });
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'At least one gratitude item is required' });
+    }
 
-    await gratitude.save();
+    // 2. Upsert: Update if entry for user + date exists, otherwise create new
+    const gratitude = await Gratitude.findOneAndUpdate(
+      { userId: req.userId, date },
+      { userId: req.userId, date, items, win: win || '' },
+      { new: true, upsert: true, runValidators: true }
+    );
+
     res.json(gratitude);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// GET user's own gratitudes (protected)
+// GET user's own gratitudes (Protected)
 router.get('/', auth, async (req, res) => {
   try {
-    const gratitudes = await Gratitude.find({ userId: req.userId }).sort({ createdAt: -1 });
+    const gratitudes = await Gratitude.find({ userId: req.userId }).sort({ date: -1 });
     res.json(gratitudes);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// GET single gratitude (only if it's yours)
-router.get('/:id', auth, async (req, res) => {
+// GET single gratitude entry by Date (Protected)
+router.get('/date/:date', auth, async (req, res) => {
   try {
-    const gratitude = await Gratitude.findById(req.params.id);
+    const gratitude = await Gratitude.findOne({ 
+      userId: req.userId, 
+      date: req.params.date 
+    });
 
     if (!gratitude) {
-      return res.status(404).json({ error: 'Not found' });
-    }
-
-    // Check ownership
-    if (gratitude.userId.toString() !== req.userId) {
-      return res.status(403).json({ error: 'Unauthorized' });
+      return res.status(404).json({ error: 'No entry found for this date' });
     }
 
     res.json(gratitude);
@@ -57,33 +59,7 @@ router.get('/:id', auth, async (req, res) => {
   }
 });
 
-// UPDATE gratitude (only if it's yours)
-router.put('/:id', auth, async (req, res) => {
-  try {
-    let gratitude = await Gratitude.findById(req.params.id);
-
-    if (!gratitude) {
-      return res.status(404).json({ error: 'Not found' });
-    }
-
-    // Verify ownership
-    if (gratitude.userId.toString() !== req.userId) {
-      return res.status(403).json({ error: 'Unauthorized' });
-    }
-
-    // Update fields
-    if (req.body.title) gratitude.title = req.body.title;
-    if (req.body.description) gratitude.description = req.body.description;
-    if (req.body.isPrivate !== undefined) gratitude.isPrivate = req.body.isPrivate;
-
-    await gratitude.save();
-    res.json(gratitude);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// DELETE gratitude (only if it's yours)
+// DELETE gratitude entry (Protected)
 router.delete('/:id', auth, async (req, res) => {
   try {
     const gratitude = await Gratitude.findById(req.params.id);
@@ -98,7 +74,7 @@ router.delete('/:id', auth, async (req, res) => {
     }
 
     await Gratitude.findByIdAndDelete(req.params.id);
-    res.json({ message: 'Gratitude deleted' });
+    res.json({ message: 'Gratitude entry deleted' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

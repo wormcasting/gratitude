@@ -1,25 +1,26 @@
 const mongoose = require('mongoose');
 
-const gratitudeSchema = new mongoose.Schema({
-  userId: { 
+const GratitudeSchema = new mongoose.Schema({
+  userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true 
+    required: true
   },
-  title: { 
-    type: String, 
-    required: true,
-    maxlength: 100
+  date: {
+    type: String, // e.g. "2026-08-24"
+    required: true
   },
-  description: { 
+  items: {
+    type: [String],
+    required: true
+  },
+  win: {
     type: String,
-    maxlength: 1000
-  },
-  isPrivate: { 
-    type: Boolean, 
-    default: true
-  },
-  createdAt: { type: Date, default: Date.now }
-});
+    default: ''
+  }
+}, { timestamps: true });
 
-module.exports = mongoose.model('Gratitude', gratitudeSchema);
+// Prevent duplicate entries for the same user on the same date
+GratitudeSchema.index({ userId: 1, date: 1 }, { unique: true });
+
+module.exports = mongoose.model('Gratitude', GratitudeSchema);
